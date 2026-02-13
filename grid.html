@@ -68,11 +68,37 @@
             <button id="btn-align-right" title="Right Align"><i class="fa fa-align-right"></i></button>
             <button id="btn-wrap-text" title="Wrap Text"><i class="fa fa-arrow-turn-down"></i></button>
         </div>
+        <div class="toolbar-separator"></div>
+        <div class="toolbar-group">
+            <button id="btn-highlight-parent" title="Highlight Parent Task"><i class="fa fa-layer-group"></i></button>
+            <button id="btn-collapse-parents" title="Collapse Parent Task"><i class="fa fa-compress"></i></button>
+            <button id="btn-export-excel" title="Export to Excel"><i class="fa fa-file-excel"></i></button>
+        </div>
         <div class="toolbar-spacer"></div>
-        <div id="save-status" class="saved">
+        <div id="save-status" class="saved" style="display:none;">
             <i id="save-status-icon" class="fa fa-check-circle"></i>
             <span id="save-status-text">All changes saved</span>
         </div>
+    </div>
+
+    <!-- Protected View Bar -->
+    <div id="protected-view-bar">
+        <div class="pv-left">
+            <i class="fa fa-shield-halved pv-icon"></i>
+            <span class="pv-text"><strong>PROTECTED VIEW</strong> &mdash; This worksheet is locked. Any changes made will not be saved.</span>
+        </div>
+        <div class="pv-right">
+            <button id="pv-enable-editing" class="pv-enable-btn"><i class="fa fa-lock-open"></i> Enable Editing</button>
+            <button id="pv-close" class="pv-close-btn" title="Close"><i class="fa fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- Version Conflict / Update Notification Bar -->
+    <div id="version-notify-bar" style="display:none; background:#fff3cd; color:#856404; padding:10px 20px; font-size:13px; border-bottom:1px solid #ffc107; text-align:center; position:relative; z-index:100;">
+        <i class="fa fa-circle-info" style="margin-right:6px;"></i>
+        <span id="version-notify-text">This project has been updated by another user.</span>
+        <button id="version-notify-reload" style="margin-left:12px; background:#ffc107; color:#856404; border:none; padding:4px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Reload</button>
+        <button id="version-notify-dismiss" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#856404; cursor:pointer; font-size:16px;" title="Dismiss">&times;</button>
     </div>
 
     <!-- Spreadsheet Container -->
@@ -158,7 +184,7 @@
     </div>
 
     <!-- Project Picker Dialog -->
-    <div id="project-picker" class="dialog-overlay">
+    <div id="project-picker" class="dialog-overlay" style="display:none;">
         <div class="dialog-box dialog-box-picker">
             <div class="picker-section-header">
                 <h3>Group Project</h3>
@@ -183,7 +209,7 @@
             </div>
 
             <div class="picker-section-header">
-                <h3>Other Project</h3>
+                <h3>Other</h3>
                 <button id="picker-new-btn" class="btn-ok"><i class="fa fa-plus"></i> New</button>
             </div>
             <div id="picker-new-row" class="picker-new-row" style="display:none;">
@@ -286,6 +312,7 @@
                     <option value="percent">&#37;&nbsp;&nbsp;Percent Complete</option>
                     <option value="cost">&#36;&nbsp;&nbsp;Cost</option>
                     <option value="contacts">&#128101;&nbsp;&nbsp;Contacts</option>
+                    <option value="predecessor">&#128279;&nbsp;&nbsp;Predecessor</option>
                 </select>
             </div>
             <!-- Symbols Style Section (shown only when type = symbols) -->
@@ -349,6 +376,16 @@
         </div>
     </div>
 
+    <div id="info-dialog" class="dialog-overlay" style="display:none;">
+        <div class="dialog-box">
+            <h3 id="info-dialog-title" style="margin-bottom:12px;"></h3>
+            <p id="info-dialog-message" style="color:#555; font-size:13px; line-height:1.5;"></p>
+            <div class="dialog-buttons">
+                <button id="info-dialog-ok" class="btn-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Row Details Sidebar -->
     <div id="row-sidebar" class="sidebar-panel">
         <div class="sidebar-header">
@@ -368,6 +405,10 @@
                 </div>
             </div>
             <div class="sidebar-right">
+                <div class="sidebar-right-notes">
+                    <h4 class="sidebar-section-title">Notes</h4>
+                    <textarea id="sidebar-notes" class="sidebar-notes-input" placeholder="Add notes about this row..." rows="3"></textarea>
+                </div>
                 <div class="sidebar-right-top">
                     <div class="sidebar-section-header">
                         <h4 class="sidebar-section-title">Attachments</h4>
@@ -387,7 +428,7 @@
                     </div>
                 </div>
                 <div class="sidebar-right-bottom">
-                    <h4 class="sidebar-section-title">Comments</h4>
+                    <h4 class="sidebar-section-title">Admin Comments</h4>
                     <div id="sidebar-comments-list" class="comments-list"></div>
                     <div class="comment-input-area">
                         <textarea id="sidebar-comment-input" placeholder="Add a comment..." rows="2"></textarea>
@@ -429,6 +470,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

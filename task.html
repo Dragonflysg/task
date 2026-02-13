@@ -24,6 +24,14 @@
         </div>
     </div>
 
+    <!-- Version Conflict / Update Notification Bar -->
+    <div id="version-notify-bar" style="display:none; background:#fff3cd; color:#856404; padding:10px 20px; font-size:13px; border-bottom:1px solid #ffc107; text-align:center; position:relative; z-index:100;">
+        <i class="fa fa-circle-info" style="margin-right:6px;"></i>
+        <span id="version-notify-text">This project has been updated by another user.</span>
+        <button id="version-notify-reload" style="margin-left:12px; background:#ffc107; color:#856404; border:none; padding:4px 14px; border-radius:4px; cursor:pointer; font-size:13px; font-weight:600;">Reload</button>
+        <button id="version-notify-dismiss" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#856404; cursor:pointer; font-size:16px;" title="Dismiss">&times;</button>
+    </div>
+
     <!-- Main Layout -->
     <div id="app-layout">
 
@@ -97,6 +105,16 @@
                         <label>% Complete
                             <input type="number" id="detail-percent" min="0" max="100" value="0">
                         </label>
+                        <label>Predecessor
+                            <select id="detail-predecessor">
+                                <option value=""></option>
+                            </select>
+                        </label>
+                        <label>Cost
+                            <input type="number" id="detail-cost" min="0" step="1" placeholder="0">
+                        </label>
+                    </div>
+                    <div class="detail-meta" style="margin-top: 8px;">
                         <label>Assigned To
                             <div class="contact-picker" id="detail-assigned-picker" data-target="header">
                                 <div class="cp-chips-area">
@@ -105,9 +123,44 @@
                                 <button type="button" class="cp-dropdown-btn"><i class="fa fa-caret-down"></i></button>
                             </div>
                         </label>
-                        <label>Cost
-                            <input type="number" id="detail-cost" min="0" step="1" placeholder="0">
-                        </label>
+                    </div>
+                </div>
+
+                <!-- Description and Documents -->
+                <div class="desc-docs-section">
+                    <div class="desc-docs-header no-border">
+                        <div class="desc-docs-header-left">
+                            <button id="btn-toggle-desc-docs" class="collapse-toggle-btn collapsed" title="Collapse/Expand">
+                                <i class="fa fa-chevron-up"></i>
+                            </button>
+                            <span class="desc-docs-title"><i class="fa fa-file-lines"></i> Notes and Attachments</span>
+                        </div>
+                    </div>
+                    <div id="desc-docs-body" class="desc-docs-body collapsed">
+                        <div class="desc-docs-content">
+                            <div class="desc-side">
+                                <label class="desc-label">Notes</label>
+                                <textarea id="detail-description" placeholder="You can add additional comments about this project" rows="5"></textarea>
+                            </div>
+                            <div class="docs-side">
+                                <div class="docs-side-header">
+                                    <label class="desc-label">Attachments</label>
+                                    <label class="btn-task-add-attachment" title="Add attachment">
+                                        <i class="fa fa-plus"></i> Add
+                                        <input type="file" id="task-attach-input" multiple
+                                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;">
+                                    </label>
+                                </div>
+                                <div id="task-attachments-area" class="task-attachments-area">
+                                    <div id="task-attachments-placeholder" class="task-attachments-placeholder">
+                                        <i class="fa fa-cloud-arrow-up"></i>
+                                        <p>Drop your files here</p>
+                                        <span>or click Add above</span>
+                                    </div>
+                                    <div id="task-attachment-list" class="task-attachment-list"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -186,7 +239,7 @@
     </div>
 
     <!-- Group Project Picker -->
-    <div id="task-project-picker" class="task-dialog-overlay">
+    <div id="task-project-picker" class="task-dialog-overlay" style="display:none;">
         <div class="task-dialog-box">
             <div class="task-picker-header">
                 <h3>Select a Group Project</h3>
