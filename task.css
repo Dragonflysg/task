@@ -566,9 +566,311 @@ body {
     width: 140px;
 }
 
+.detail-meta select#detail-predecessor {
+    width: 280px;
+}
+
 .detail-meta input:focus,
 .detail-meta select:focus {
     border-color: #2a5db0;
+}
+
+/* === Description and Documents Section === */
+.desc-docs-section {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.desc-docs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.desc-docs-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.collapse-toggle-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #888;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.collapse-toggle-btn:hover {
+    background: #f0f4fa;
+    border-color: #2a5db0;
+    color: #2a5db0;
+}
+
+.collapse-toggle-btn.collapsed i {
+    transform: rotate(180deg);
+}
+
+.collapse-toggle-btn i {
+    transition: transform 0.2s ease;
+}
+
+.desc-docs-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.desc-docs-body {
+    padding: 20px;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+    overflow: hidden;
+}
+
+.desc-docs-body.collapsed {
+    max-height: 0 !important;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    border-top: none;
+}
+
+.desc-docs-header.no-border {
+    border-bottom: none;
+}
+
+.desc-docs-content {
+    display: flex;
+    gap: 24px;
+}
+
+.desc-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.desc-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.desc-side textarea {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: #333;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 10px 12px;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+}
+
+.desc-side textarea:focus {
+    border-color: #2a5db0;
+}
+
+.docs-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.docs-side-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.btn-task-add-attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2a5db0;
+    border: 1px solid #2a5db0;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-task-add-attachment:hover {
+    background: #f0f4fa;
+}
+
+.task-attachments-area {
+    border: 2px dashed #d0d0d0;
+    border-radius: 6px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.15s;
+}
+
+.task-attachments-area.drag-over {
+    border-color: #2a5db0;
+    background: #f0f4fa;
+}
+
+.task-attachments-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    flex: 1;
+    color: #aaa;
+}
+
+.task-attachments-placeholder i {
+    font-size: 28px;
+    color: #b8c8e0;
+    margin-bottom: 6px;
+}
+
+.task-attachments-placeholder p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+}
+
+.task-attachments-placeholder span {
+    font-size: 11px;
+    color: #aaa;
+}
+
+.task-attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+}
+
+.task-att-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: #f7f9fc;
+    font-size: 12px;
+    color: #333;
+    transition: background 0.1s;
+}
+
+.task-att-item:hover {
+    background: #eef2f8;
+}
+
+.task-att-item i:first-child {
+    color: #2a5db0;
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.task-att-item .att-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-att-item .att-size {
+    color: #999;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.task-att-item .att-remove {
+    color: #ccc;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.1s;
+    flex-shrink: 0;
+}
+
+.task-att-item .att-remove:hover {
+    color: #d32f2f;
+    background: #fde8e8;
+}
+
+.task-att-item a.att-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #2a5db0;
+    text-decoration: none;
+}
+
+.task-att-item a.att-name:hover {
+    text-decoration: underline;
+}
+
+/* Upload progress bar */
+.att-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #e0e0e0;
+    border-radius: 0 0 4px 4px;
+    overflow: hidden;
+}
+
+.att-progress-bar {
+    height: 100%;
+    width: 0;
+    background: #2a5db0;
+    border-radius: 0 0 4px 4px;
+    transition: width 0.15s ease;
+}
+
+.task-att-item.uploading {
+    position: relative;
+    opacity: 0.7;
+}
+
+.task-att-item.uploading .att-remove {
+    display: none;
 }
 
 /* === Subtask Section === */
@@ -792,6 +1094,7 @@ body {
 
 #subtask-table tbody td input[data-field="cost"] {
     -moz-appearance: textfield;
+    text-align: right;
 }
 
 /* Row action buttons */

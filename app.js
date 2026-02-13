@@ -24,18 +24,30 @@ $(document).ready(function () {
     var lastClickedRow = null; // for shift+click range selection
     var rowAttachments = {};  // rowIndex => [{name, size, type, dataUrl}]
     var rowComments = {};     // rowIndex => [{text, time}]
+    var rowNotes = {};        // rowIndex => string (notes/description text)
     var sidebarOpenRow = null;
     var collapsedRows = {};   // rowIndex => true if this parent row is collapsed
     var dragSourceColIndex = null; // column index being dragged for reorder
+    var isGroupProject = false;   // true if opened from Group Project section
+    var highlightParentRows = true; // toggle for parent task row highlighting
+
+    // ========== Access Control ==========
+    var SUPER_USER = ['gs6368', 'ab1234'];
+    var DEFAULT_GROUP_PROJECT = 'INTLITServicesMigration';
+    var isProtectedView = true; // starts in protected mode
 
     // ========== Persistence Configuration ==========
-    var CURRENT_USER_ID = 'ab1234';
+    var CURRENT_USER_ID = 'gs6368';
     var PROJ_NAME = '';
     var currentDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     var saveTimer = null;
     var SAVE_DEBOUNCE_MS = 1000;
     var isSavingToServer = false;
     var pendingSave = false;
+    var projectVersion = 0;       // server version of the loaded data
+    var versionPollTimer = null;
+    var VERSION_POLL_MS = 30000;  // 30 seconds
+    var baselineState = null;     // deep copy of state as loaded from server (for merge)
 
     function getSaveKey() {
         return CURRENT_USER_ID + '_' + PROJ_NAME + '_' + currentDate;
@@ -300,8 +312,148 @@ $(document).ready(function () {
     // ========== Initialization ==========
     function init() {
         loadWsContacts();
-        showProjectPicker();
+        if (isSuperUser()) {
+            showProjectPicker();
+        } else {
+            loadDefaultGroupProject();
+        }
     }
+
+    function loadDefaultGroupProject() {
+        PROJ_NAME = DEFAULT_GROUP_PROJECT;
+        isGroupProject = true;
+        currentDate = new Date().toISOString().slice(0, 10);
+        $('#worksheet-subtitle').text(DEFAULT_GROUP_PROJECT);
+        initProtectedView();
+
+        $.ajax({
+            url: '/api/load-group',
+            method: 'GET',
+            data: { project: DEFAULT_GROUP_PROJECT },
+            dataType: 'json',
+            timeout: 5000,
+            success: function (resp) {
+                if (resp && resp.ok && resp.data) {
+                    projectVersion = resp.version || 0;
+                    loadState(resp.data);
+                    storeBaseline();
+                    initColorPickers();
+                    updateSaveStatus('saved');
+                    startVersionPolling();
+                } else {
+                    alert('The project "' + DEFAULT_GROUP_PROJECT + '" was not found. Please contact your administrator.');
+                }
+                undoStack = [];
+                redoStack = [];
+                updateUndoRedoButtons();
+            },
+            error: function () {
+                alert('The project "' + DEFAULT_GROUP_PROJECT + '" could not be loaded. Please check your connection.');
+            }
+        });
+    }
+
+    function isSuperUser() {
+        return SUPER_USER.indexOf(CURRENT_USER_ID) !== -1;
+    }
+
+    function initProtectedView() {
+        isProtectedView = true;
+        $('body').addClass('protected-mode');
+        $('#protected-view-bar').addClass('visible');
+
+        // Hide status area until user takes action on the protected view bar
+        $('#save-status').hide();
+
+        // Only show "Enable Editing" button for super users
+        if (isSuperUser()) {
+            $('#pv-enable-editing').show();
+        } else {
+            $('#pv-enable-editing').hide();
+        }
+    }
+
+    function enableEditing() {
+        isProtectedView = false;
+        $('body').removeClass('protected-mode');
+        $('#protected-view-bar').removeClass('visible');
+        // Show "Editing Enabled" in the status area
+        var $status = $('#save-status');
+        $status.show();
+        $status.removeClass('saving saved offline error protected').addClass('editing-enabled');
+        $('#save-status-icon').attr('class', 'fa fa-lock-open');
+        $('#save-status-text').text('Editing Enabled');
+    }
+
+    function reloadCurrentProject(callback) {
+        if (isGroupProject) {
+            $.ajax({
+                url: '/api/load-group',
+                method: 'GET',
+                data: { project: PROJ_NAME },
+                dataType: 'json',
+                timeout: 5000,
+                success: function (resp) {
+                    if (resp && resp.ok && resp.data) {
+                        projectVersion = resp.version || 0;
+                        loadState(resp.data);
+                        storeBaseline();
+                        initColorPickers();
+                        hideVersionNotify();
+                    }
+                    undoStack = [];
+                    redoStack = [];
+                    updateUndoRedoButtons();
+                    if (callback) callback();
+                },
+                error: function () {
+                    if (callback) callback();
+                }
+            });
+        } else {
+            loadFromServer(function (serverData) {
+                if (serverData) {
+                    loadState(serverData);
+                    initColorPickers();
+                }
+                undoStack = [];
+                redoStack = [];
+                updateUndoRedoButtons();
+                if (callback) callback();
+            });
+        }
+    }
+
+    function showInfoDialog(title, message) {
+        $('#info-dialog-title').text(title);
+        $('#info-dialog-message').text(message);
+        $('#info-dialog').show();
+    }
+
+    $('#info-dialog-ok').on('click', function () {
+        $('#info-dialog').hide();
+    });
+
+    $('#pv-enable-editing').on('click', function () {
+        reloadCurrentProject(function () {
+            enableEditing();
+            showInfoDialog(
+                'Project Reloaded for Editing',
+                'To ensure no unwanted changes are saved, this project has been reloaded from the source. You are now in editing mode.'
+            );
+        });
+    });
+
+    $('#pv-close').on('click', function () {
+        // Close the bar but keep protected mode active
+        $('#protected-view-bar').removeClass('visible');
+        // Show protected mode message in the status area
+        var $status = $('#save-status');
+        $status.show();
+        $status.removeClass('saving saved offline error editing-enabled').addClass('protected');
+        $('#save-status-icon').attr('class', 'fa fa-lock');
+        $('#save-status-text').text('Protected Mode. Save option is not available.');
+    });
 
     function showProjectPicker() {
         var $picker = $('#project-picker');
@@ -385,17 +537,21 @@ $(document).ready(function () {
 
     function selectProject(name) {
         PROJ_NAME = name;
+        isGroupProject = false;
         currentDate = new Date().toISOString().slice(0, 10);
         $('#project-picker').hide();
         $('#worksheet-subtitle').text(name);
+        initProtectedView();
         loadProject();
     }
 
     function selectGroupProject(name) {
         PROJ_NAME = name;
+        isGroupProject = true;
         currentDate = new Date().toISOString().slice(0, 10);
         $('#project-picker').hide();
         $('#worksheet-subtitle').text(name);
+        initProtectedView();
 
         $.ajax({
             url: '/api/load-group',
@@ -405,10 +561,15 @@ $(document).ready(function () {
             timeout: 5000,
             success: function (resp) {
                 if (resp && resp.ok && resp.data) {
+                    projectVersion = resp.version || 0;
                     loadState(resp.data);
+                    storeBaseline();
                     initColorPickers();
                     updateSaveStatus('saved');
+                    startVersionPolling();
                 } else {
+                    projectVersion = 0;
+                    baselineState = null;
                     columns = [];
                     for (var i = 0; i < DEFAULT_COLS; i++) {
                         columns.push(createColumn(i === 0 ? 'Task Name' : 'Column' + (i + 1)));
@@ -460,9 +621,16 @@ $(document).ready(function () {
 
     function createNewProject(name) {
         PROJ_NAME = name;
+        isGroupProject = false;
         currentDate = new Date().toISOString().slice(0, 10);
         $('#project-picker').hide();
         $('#worksheet-subtitle').text(name);
+        // New projects: auto-enable editing for super users
+        if (isSuperUser()) {
+            enableEditing();
+        } else {
+            initProtectedView();
+        }
 
         // Reset state for a blank worksheet
         columns = [];
@@ -472,6 +640,7 @@ $(document).ready(function () {
         collapsedRows = {};
         rowAttachments = {};
         rowComments = {};
+        rowNotes = {};
         colIdCounter = 0;
         selectedCell = null;
         selectedRows = [];
@@ -529,9 +698,14 @@ $(document).ready(function () {
             collapsedRows: $.extend({}, collapsedRows),
             rowAttachments: $.extend(true, {}, rowAttachments),
             rowComments: $.extend(true, {}, rowComments),
+            rowNotes: $.extend({}, rowNotes),
             colIdCounter: colIdCounter,
             createdBy: CURRENT_USER_ID
         };
+    }
+
+    function storeBaseline() {
+        baselineState = collectState();
     }
 
     function loadState(data) {
@@ -543,7 +717,33 @@ $(document).ready(function () {
         collapsedRows = data.collapsedRows || {};
         rowAttachments = data.rowAttachments || {};
         rowComments = data.rowComments || {};
+        rowNotes = data.rowNotes || {};
         colIdCounter = data.colIdCounter || 0;
+
+        // Extract notes from _taskData if present (data from task.html)
+        // Extract notes and attachments from _taskData as fallback
+        // Both belong to the parent task (indent 0 row)
+        if (data._taskData && data._taskData.tasks) {
+            var hasNotes = data.rowNotes && Object.keys(data.rowNotes).length > 0;
+            var hasAttachments = data.rowAttachments && Object.keys(data.rowAttachments).length > 0;
+            var taskRowIdx = 0;
+            $.each(data._taskData.tasks, function (ti, task) {
+                var parentRowIdx = taskRowIdx;
+                if (!hasNotes && task.description) {
+                    rowNotes[parentRowIdx] = task.description;
+                }
+                if (!hasAttachments && task.attachments && task.attachments.length) {
+                    rowAttachments[parentRowIdx] = task.attachments.slice();
+                }
+                taskRowIdx++;
+                $.each(task.subtasks || [], function (si, sub) {
+                    taskRowIdx++;
+                    $.each(sub.subtasks || [], function () {
+                        taskRowIdx++;
+                    });
+                });
+            });
+        }
 
         selectedCell = null;
         selectedRows = [];
@@ -593,40 +793,72 @@ $(document).ready(function () {
         isSavingToServer = true;
         var state = collectState();
 
-        $.ajax({
-            url: '/api/save',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                userId: CURRENT_USER_ID,
-                projectName: PROJ_NAME,
-                date: currentDate,
-                data: state
-            }),
-            timeout: 10000,
-            success: function (resp) {
-                isSavingToServer = false;
-                if (resp && resp.ok) {
-                    updateSaveStatus('saved');
-                } else {
-                    updateSaveStatus('offline');
+        var ajaxOptions;
+        if (isGroupProject) {
+            ajaxOptions = {
+                url: '/api/save-tasks',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    project: PROJ_NAME,
+                    version: projectVersion,
+                    data: state
+                }),
+                timeout: 10000
+            };
+        } else {
+            ajaxOptions = {
+                url: '/api/save',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    userId: CURRENT_USER_ID,
+                    projectName: PROJ_NAME,
+                    date: currentDate,
+                    data: state
+                }),
+                timeout: 10000
+            };
+        }
+
+        ajaxOptions.success = function (resp) {
+            isSavingToServer = false;
+            if (resp && resp.ok) {
+                if (resp.version !== undefined) {
+                    projectVersion = resp.version;
                 }
-                if (pendingSave) {
-                    pendingSave = false;
-                    saveToServer();
-                }
-                if (callback) callback(true);
-            },
-            error: function () {
-                isSavingToServer = false;
+                storeBaseline();
+                updateSaveStatus('saved');
+                hideVersionNotify();
+            } else {
                 updateSaveStatus('offline');
-                if (pendingSave) {
-                    pendingSave = false;
-                    saveToServer();
-                }
-                if (callback) callback(false);
             }
-        });
+            if (pendingSave) {
+                pendingSave = false;
+                saveToServer();
+            }
+            if (callback) callback(true);
+        };
+        ajaxOptions.error = function (xhr) {
+            isSavingToServer = false;
+            if (xhr.status === 409 && isGroupProject) {
+                try {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.conflict) {
+                        mergeAndRetrySave(callback);
+                        return;
+                    }
+                } catch (e) { /* fall through */ }
+            }
+            updateSaveStatus('offline');
+            if (pendingSave) {
+                pendingSave = false;
+                saveToServer();
+            }
+            if (callback) callback(false);
+        };
+
+        $.ajax(ajaxOptions);
     }
 
     function loadFromServer(callback) {
@@ -680,6 +912,7 @@ $(document).ready(function () {
 
     function scheduleSave() {
         pushUndo();
+        if (isProtectedView) return; // Do not save in protected mode
         updateSaveStatus('saving');
         if (saveTimer) {
             clearTimeout(saveTimer);
@@ -693,6 +926,7 @@ $(document).ready(function () {
     }
 
     function saveNow() {
+        if (isProtectedView) return; // Do not save in protected mode
         if (saveTimer) {
             clearTimeout(saveTimer);
             saveTimer = null;
@@ -869,6 +1103,49 @@ $(document).ready(function () {
         return false;
     }
 
+    // Build hierarchical label for a row (for predecessor column)
+    function buildPredecessorLabel(r) {
+        var name = (cellData[r + '-0'] && cellData[r + '-0'].text) || '';
+        if (!name) return '';
+        var indent = getRowIndent(r);
+        if (indent === 0) return name;
+        var parts = [name];
+        var currentIndent = indent;
+        for (var p = r - 1; p >= 0; p--) {
+            var pIndent = getRowIndent(p);
+            if (pIndent < currentIndent) {
+                var pName = (cellData[p + '-0'] && cellData[p + '-0'].text) || '';
+                if (pName) parts.unshift(pName);
+                currentIndent = pIndent;
+                if (currentIndent === 0) break;
+            }
+        }
+        return parts.join(' > ');
+    }
+
+    // Find the parent task row (indent 0) for any given row
+    function getParentTaskRow(r) {
+        var indent = getRowIndent(r);
+        if (indent === 0) return r;
+        for (var p = r - 1; p >= 0; p--) {
+            if (getRowIndent(p) === 0) return p;
+        }
+        return r; // fallback to self
+    }
+
+    // Get all predecessor options (excluding a specific row)
+    function getPredecessorOptions(excludeRow) {
+        var options = [];
+        for (var r = 0; r < totalRows; r++) {
+            if (r === excludeRow) continue;
+            var label = buildPredecessorLabel(r);
+            if (label) {
+                options.push({ row: r, label: label });
+            }
+        }
+        return options;
+    }
+
     function renderBody() {
         var $body = $('#spreadsheet-body');
         $body.empty();
@@ -936,6 +1213,10 @@ $(document).ready(function () {
             }
 
             var rowIsParent = isParentRow(r);
+            var rowIndent = getRowIndent(r);
+            if (rowIndent === 0 && highlightParentRows) {
+                $tr.addClass('parent-row-highlight');
+            }
 
             for (var c = 0; c < columns.length; c++) {
                 var col = columns[c];
@@ -973,6 +1254,8 @@ $(document).ready(function () {
                     styles['text-align'] = data.align;
                 } else if (colType === 'percent' || colType === 'cost') {
                     styles['text-align'] = 'right';
+                } else if (colType === 'predecessor') {
+                    styles['text-align'] = 'left';
                 }
 
                 // Wrap text
@@ -1080,6 +1363,9 @@ $(document).ready(function () {
                         var $span = $('<span class="cell-content">').text(data.text);
                         $td.append($span);
                     }
+                } else if (colType === 'predecessor') {
+                    var $span = $('<span class="cell-content">').text(data.text || '');
+                    $td.append($span);
                 } else {
                     var $span = $('<span class="cell-content">').text(data.text || '');
                     $td.append($span);
@@ -1298,6 +1584,40 @@ $(document).ready(function () {
                 .append($('<option value="">').text('— Select —'));
             $.each(symOpts, function (i, opt) {
                 $sel.append($('<option>').val(opt.value).text(opt.value));
+            });
+            $sel.val(currentText);
+
+            $sel.on('change', function () {
+                handledByKey = true;
+                finishEditing(row, col, $(this).val());
+                if (row < totalRows - 1) {
+                    selectCell(row + 1, col);
+                }
+            }).on('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    handledByKey = true;
+                    finishEditing(row, col, currentText);
+                    selectCell(row, col);
+                }
+            }).on('blur', function () {
+                if (!handledByKey) {
+                    finishEditing(row, col, $(this).val());
+                }
+            });
+
+            $td.append($sel);
+            $sel.focus();
+            return;
+        }
+
+        // Predecessor: use a <select> with all rows as options
+        if (colType === 'predecessor') {
+            var predOpts = getPredecessorOptions(row);
+            var $sel = $('<select class="cell-editor">')
+                .append($('<option value="">').text(''));
+            $.each(predOpts, function (i, opt) {
+                $sel.append($('<option>').val(opt.label).text(opt.label));
             });
             $sel.val(currentText);
 
@@ -1693,6 +2013,7 @@ $(document).ready(function () {
     $('#btn-save').on('click', function () { saveNow(); });
     $('#btn-delete-project').on('click', function () {
         if (!PROJ_NAME) return;
+        if (isProtectedView) { showToast('Protected View: Deleting a project is disabled.'); return; }
         $('#delete-project-name').text(PROJ_NAME);
         $('#delete-project-dialog').show();
     });
@@ -1701,17 +2022,26 @@ $(document).ready(function () {
     });
     $('#delete-project-confirm').on('click', function () {
         $('#delete-project-dialog').hide();
+        var deleteUrl, deleteData;
+        if (isGroupProject) {
+            deleteUrl = '/api/delete-group';
+            deleteData = JSON.stringify({ projectName: PROJ_NAME });
+        } else {
+            deleteUrl = '/api/delete';
+            deleteData = JSON.stringify({ userId: CURRENT_USER_ID, projectName: PROJ_NAME });
+        }
         $.ajax({
-            url: '/api/delete',
+            url: deleteUrl,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ userId: CURRENT_USER_ID, projectName: PROJ_NAME }),
+            data: deleteData,
             timeout: 5000,
             success: function (resp) {
                 if (resp && resp.ok) {
                     showToast('Project "' + PROJ_NAME + '" deleted.');
                     // Clear all in-memory state
                     PROJ_NAME = '';
+                    isGroupProject = false;
                     columns = [];
                     cellData = {};
                     totalRows = DEFAULT_ROWS;
@@ -1793,6 +2123,34 @@ $(document).ready(function () {
         data.wrapText = !data.wrapText;
         renderBody();
         updateToolbarState();
+        scheduleSave();
+    });
+
+    // ========== Toolbar: Highlight Parent Task ==========
+    $('#btn-highlight-parent').addClass('active');
+    $('#btn-highlight-parent').on('click', function () {
+        highlightParentRows = !highlightParentRows;
+        $(this).toggleClass('active', highlightParentRows);
+        renderBody();
+    });
+
+    // ========== Toolbar: Collapse/Expand All Parent Tasks ==========
+    $('#btn-collapse-parents').on('click', function () {
+        var allCollapsed = $(this).hasClass('active');
+        if (!allCollapsed) {
+            // Collapse all parent rows (indent 0 that have children)
+            for (var r = 0; r < totalRows; r++) {
+                if (getRowIndent(r) === 0 && isParentRow(r)) {
+                    collapsedRows[r] = true;
+                }
+            }
+            $(this).addClass('active');
+        } else {
+            // Expand all
+            collapsedRows = {};
+            $(this).removeClass('active');
+        }
+        renderBody();
         scheduleSave();
     });
 
@@ -1966,12 +2324,15 @@ $(document).ready(function () {
 
         switch (action) {
             case 'insert-left':
+                if (isProtectedView) { showToast('Protected View: Inserting columns is disabled.'); return; }
                 insertColumn(colIndex);
                 break;
             case 'insert-right':
+                if (isProtectedView) { showToast('Protected View: Inserting columns is disabled.'); return; }
                 insertColumn(colIndex + 1);
                 break;
             case 'delete-column':
+                if (isProtectedView) { showToast('Protected View: Deleting columns is disabled.'); return; }
                 deleteColumn(colIndex);
                 break;
             case 'rename-column':
@@ -2320,21 +2681,26 @@ $(document).ready(function () {
 
         switch (action) {
             case 'insert-above':
+                if (isProtectedView) { showToast('Protected View: Inserting rows is disabled.'); return; }
                 insertRow(rowIndex);
                 break;
             case 'insert-below':
+                if (isProtectedView) { showToast('Protected View: Inserting rows is disabled.'); return; }
                 insertRow(rowIndex + 1);
                 break;
             case 'cut':
+                if (isProtectedView) { showToast('Protected View: Cutting rows is disabled.'); return; }
                 cutRow(rowIndex);
                 break;
             case 'copy':
                 copyRow(rowIndex);
                 break;
             case 'paste':
+                if (isProtectedView) { showToast('Protected View: Pasting rows is disabled.'); return; }
                 pasteRow(rowIndex);
                 break;
             case 'delete':
+                if (isProtectedView) { showToast('Protected View: Deleting rows is disabled.'); return; }
                 if (selectedRows.length > 1) {
                     deleteRows(selectedRows);
                 } else {
@@ -2450,6 +2816,7 @@ $(document).ready(function () {
             // Clean up attachments, comments, collapsed state
             delete rowAttachments[sorted[i]];
             delete rowComments[sorted[i]];
+            delete rowNotes[sorted[i]];
             delete collapsedRows[sorted[i]];
         }
 
@@ -2933,8 +3300,8 @@ $(document).ready(function () {
 
     function openSidebar(rowIndex) {
         sidebarOpenRow = rowIndex;
-        var firstCellText = (cellData[rowIndex + '-0'] && cellData[rowIndex + '-0'].text) || 'Row ' + (rowIndex + 1);
-        $('#sidebar-title').text(firstCellText || 'Row ' + (rowIndex + 1));
+        var sidebarTitleText = buildPredecessorLabel(rowIndex) || 'Row ' + (rowIndex + 1);
+        $('#sidebar-title').html('<i class="fa fa-bookmark sidebar-title-icon"></i> ' + $('<span>').text(sidebarTitleText).html());
 
         // Build detail fields for each visible column
         var $fields = $('#sidebar-fields');
@@ -3053,6 +3420,24 @@ $(document).ready(function () {
                 }
                 $sel.val(data.text || '');
                 $group.append($sel);
+            } else if (colType === 'predecessor') {
+                var predOpts = getPredecessorOptions(rowIndex);
+                var $sel = $('<select>')
+                    .attr('id', fieldId)
+                    .attr('data-sidebar-col', c);
+                $sel.append($('<option value="">').text('— Select —'));
+                $.each(predOpts, function (i, opt) {
+                    $sel.append($('<option>').val(opt.label).text(opt.label));
+                });
+                // If current value exists but not in options, add it
+                if (data.text) {
+                    var predLabels = predOpts.map(function (o) { return o.label; });
+                    if (predLabels.indexOf(data.text) === -1) {
+                        $sel.append($('<option>').val(data.text).text(data.text));
+                    }
+                }
+                $sel.val(data.text || '');
+                $group.append($sel);
             } else {
                 // text or number
                 var inputType = (colType === 'number') ? 'text' : 'text';
@@ -3066,11 +3451,17 @@ $(document).ready(function () {
             $fields.append($group);
         });
 
-        // Render attachments
-        renderSidebarAttachments(rowIndex);
+        // Render notes (always show parent task's notes)
+        var notesParentRow = getParentTaskRow(rowIndex);
+        $('#sidebar-notes').val(rowNotes[notesParentRow] || '').attr('data-notes-row', notesParentRow);
 
-        // Render comments
-        renderSidebarComments(rowIndex);
+        // Render attachments (always show parent task's attachments)
+        var attachParentRow = getParentTaskRow(rowIndex);
+        renderSidebarAttachments(attachParentRow);
+
+        // Render comments (always show parent task's comments)
+        var commentsParentRow = getParentTaskRow(rowIndex);
+        renderSidebarComments(commentsParentRow);
 
         // Open the panel
         $('#row-sidebar').addClass('open');
@@ -3086,6 +3477,20 @@ $(document).ready(function () {
 
     $('#sidebar-close').on('click', function () {
         closeSidebar();
+    });
+
+    // Save notes on input (always saves to parent task row)
+    $('#sidebar-notes').on('input', function () {
+        if (sidebarOpenRow === null) return;
+        var parentRow = parseInt($(this).attr('data-notes-row'));
+        if (isNaN(parentRow)) parentRow = getParentTaskRow(sidebarOpenRow);
+        var val = $(this).val();
+        if (val) {
+            rowNotes[parentRow] = val;
+        } else {
+            delete rowNotes[parentRow];
+        }
+        scheduleSave();
     });
 
     // Apply changes from sidebar back to cellData
@@ -3116,8 +3521,8 @@ $(document).ready(function () {
         renderBody();
 
         // Update sidebar title
-        var firstCellText = (cellData[rowIndex + '-0'] && cellData[rowIndex + '-0'].text) || 'Row ' + (rowIndex + 1);
-        $('#sidebar-title').text(firstCellText || 'Row ' + (rowIndex + 1));
+        var updatedTitle = buildPredecessorLabel(rowIndex) || 'Row ' + (rowIndex + 1);
+        $('#sidebar-title').html('<i class="fa fa-bookmark sidebar-title-icon"></i> ' + $('<span>').text(updatedTitle).html());
 
         showToast('Row ' + (rowIndex + 1) + ' updated.');
         scheduleSave();
@@ -3208,12 +3613,20 @@ $(document).ready(function () {
             $.each(attachments, function (i, att) {
                 var icon = getFileIcon(att.type);
                 var sizeStr = formatFileSize(att.size);
-                var $item = $('<div class="attachment-item">')
-                    .append('<i class="fa ' + icon + '"></i>')
-                    .append($('<span class="att-name">').text(att.name))
-                    .append($('<span class="att-size">').text(sizeStr))
-                    .append($('<span class="att-remove" title="Remove"><i class="fa fa-xmark"></i></span>')
-                        .attr('data-att-index', i));
+                var isUploaded = !!att.storedName;
+                var $item = $('<div class="attachment-item">').attr('data-att-index', i);
+                $item.append('<i class="fa ' + icon + '"></i>');
+                if (isUploaded) {
+                    var safeProjName = PROJ_NAME.replace(/[^A-Za-z0-9_\-]/g, '');
+                    var $link = $('<a class="att-name" target="_blank">')
+                        .attr('href', '/api/files/' + safeProjName + '/' + att.storedName)
+                        .text(att.name);
+                    $item.append($link);
+                } else {
+                    $item.append($('<span class="att-name">').text(att.name));
+                }
+                $item.append($('<span class="att-size">').text(sizeStr));
+                $item.append($('<span class="att-remove" title="Remove"><i class="fa fa-xmark"></i></span>'));
                 $list.append($item);
             });
         }
@@ -3235,47 +3648,117 @@ $(document).ready(function () {
         return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    // File input handler
-    $('#sidebar-file-input').on('change', function () {
+    function uploadSidebarFile(file, rowIndex) {
+        if (!rowAttachments[rowIndex]) rowAttachments[rowIndex] = [];
+
+        var attIndex = rowAttachments[rowIndex].length;
+        rowAttachments[rowIndex].push({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            storedName: '',
+            uploading: true
+        });
+
+        // Hide placeholder, show progress row
+        $('.attachments-placeholder').hide();
+        var icon = getFileIcon(file.type);
+        var $item = $('<div class="attachment-item uploading">').attr('data-att-index', attIndex);
+        $item.append('<i class="fa ' + icon + '"></i>');
+        $item.append($('<span class="att-name">').text(file.name));
+        $item.append($('<span class="att-size">').text(formatFileSize(file.size)));
+        var $progress = $('<div class="att-progress"><div class="att-progress-bar"></div></div>');
+        $item.append($progress);
+        $('#attachment-list').append($item);
+
+        var formData = new FormData();
+        formData.append('file', file);
+        formData.append('project', PROJ_NAME);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload', true);
+
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                var pct = Math.round((e.loaded / e.total) * 100);
+                $item.find('.att-progress-bar').css('width', pct + '%');
+            }
+        };
+
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                try {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.ok) {
+                        rowAttachments[rowIndex][attIndex].storedName = resp.storedName;
+                        rowAttachments[rowIndex][attIndex].uploading = false;
+                        scheduleSave();
+                        if (sidebarOpenRow === rowIndex) {
+                            renderSidebarAttachments(rowIndex);
+                        }
+                        return;
+                    }
+                } catch (e) { /* fall through */ }
+            }
+            rowAttachments[rowIndex].splice(attIndex, 1);
+            if (sidebarOpenRow === rowIndex) {
+                renderSidebarAttachments(rowIndex);
+            }
+            showToast('Upload failed for "' + file.name + '"');
+        };
+
+        xhr.onerror = function () {
+            rowAttachments[rowIndex].splice(attIndex, 1);
+            if (sidebarOpenRow === rowIndex) {
+                renderSidebarAttachments(rowIndex);
+            }
+            showToast('Upload failed for "' + file.name + '"');
+        };
+
+        xhr.send(formData);
+    }
+
+    function processSidebarFiles(files) {
         if (sidebarOpenRow === null) return;
-        var files = this.files;
         if (!files || files.length === 0) return;
-
-        if (!rowAttachments[sidebarOpenRow]) {
-            rowAttachments[sidebarOpenRow] = [];
-        }
-
+        var parentRow = getParentTaskRow(sidebarOpenRow);
+        var allowed = /^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|application\/vnd\.ms-excel|text\/)/;
         for (var i = 0; i < files.length; i++) {
             var file = files[i];
-            // Validate file type
-            var allowed = /^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|application\/vnd\.ms-excel|text\/)/;
             if (!allowed.test(file.type) && !file.name.match(/\.(csv|txt|doc|docx|xls|xlsx|pdf)$/i)) {
                 showToast('File "' + file.name + '" is not an allowed type.');
                 continue;
             }
-
-            rowAttachments[sidebarOpenRow].push({
-                name: file.name,
-                size: file.size,
-                type: file.type
-            });
+            uploadSidebarFile(file, parentRow);
         }
+    }
 
-        renderSidebarAttachments(sidebarOpenRow);
-        scheduleSave();
-        // Reset input so same file can be re-selected
+    // File input handler
+    $('#sidebar-file-input').on('change', function () {
+        processSidebarFiles(this.files);
         $(this).val('');
     });
 
-    // Remove attachment
+    // Remove attachment (also deletes from server, always targets parent row)
     $(document).on('click', '.att-remove', function () {
         if (sidebarOpenRow === null) return;
-        var idx = parseInt($(this).attr('data-att-index'));
-        if (rowAttachments[sidebarOpenRow]) {
-            rowAttachments[sidebarOpenRow].splice(idx, 1);
-            renderSidebarAttachments(sidebarOpenRow);
-            scheduleSave();
+        var parentRow = getParentTaskRow(sidebarOpenRow);
+        var $item = $(this).closest('.attachment-item');
+        var idx = parseInt($item.attr('data-att-index'));
+        if (!rowAttachments[parentRow] || idx >= rowAttachments[parentRow].length) return;
+
+        var att = rowAttachments[parentRow][idx];
+        if (att.storedName) {
+            $.ajax({
+                url: '/api/delete-file',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ project: PROJ_NAME, storedName: att.storedName })
+            });
         }
+        rowAttachments[parentRow].splice(idx, 1);
+        renderSidebarAttachments(parentRow);
+        scheduleSave();
     });
 
     // Drag and drop on attachments area
@@ -3287,29 +3770,7 @@ $(document).ready(function () {
     }).on('drop', function (e) {
         e.preventDefault();
         $(this).css('border-color', '');
-        if (sidebarOpenRow === null) return;
-        var files = e.originalEvent.dataTransfer.files;
-        if (!files || files.length === 0) return;
-
-        if (!rowAttachments[sidebarOpenRow]) {
-            rowAttachments[sidebarOpenRow] = [];
-        }
-
-        var allowed = /^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|application\/vnd\.ms-excel|text\/)/;
-        for (var i = 0; i < files.length; i++) {
-            var file = files[i];
-            if (!allowed.test(file.type) && !file.name.match(/\.(csv|txt|doc|docx|xls|xlsx|pdf)$/i)) {
-                showToast('File "' + file.name + '" is not an allowed type.');
-                continue;
-            }
-            rowAttachments[sidebarOpenRow].push({
-                name: file.name,
-                size: file.size,
-                type: file.type
-            });
-        }
-        renderSidebarAttachments(sidebarOpenRow);
-        scheduleSave();
+        processSidebarFiles(e.originalEvent.dataTransfer.files);
     });
 
     // ========== Sidebar: Comments ==========
@@ -3349,16 +3810,17 @@ $(document).ready(function () {
         var text = $('#sidebar-comment-input').val().trim();
         if (!text) return;
 
-        if (!rowComments[sidebarOpenRow]) {
-            rowComments[sidebarOpenRow] = [];
+        var parentRow = getParentTaskRow(sidebarOpenRow);
+        if (!rowComments[parentRow]) {
+            rowComments[parentRow] = [];
         }
 
         var now = new Date();
         var timeStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        rowComments[sidebarOpenRow].push({ text: text, time: timeStr });
+        rowComments[parentRow].push({ text: text, time: timeStr });
         $('#sidebar-comment-input').val('');
-        renderSidebarComments(sidebarOpenRow);
+        renderSidebarComments(parentRow);
         scheduleSave();
     }
 
@@ -3374,6 +3836,181 @@ $(document).ready(function () {
             if (sidebarOpenRow !== null) closeSidebar();
         }
     });
+
+    // ========== Export to Excel ==========
+    $('#btn-export-excel').on('click', function () {
+        if (!PROJ_NAME) {
+            showToast('No project open to export.');
+            return;
+        }
+        exportToExcel();
+    });
+
+    function exportToExcel() {
+        if (typeof ExcelJS === 'undefined') {
+            showToast('Excel library not loaded. Check your connection.');
+            return;
+        }
+
+        // Determine which columns are visible
+        var visibleCols = [];
+        for (var c = 0; c < columns.length; c++) {
+            if (!columns[c].hidden) {
+                visibleCols.push(c);
+            }
+        }
+        if (visibleCols.length === 0) {
+            showToast('No visible columns to export.');
+            return;
+        }
+
+        // Find last row with data
+        var lastDataRow = 0;
+        for (var r = 0; r < totalRows; r++) {
+            for (var ci = 0; ci < visibleCols.length; ci++) {
+                var key = r + '-' + visibleCols[ci];
+                if (cellData[key] && cellData[key].text && cellData[key].text.trim()) {
+                    lastDataRow = r;
+                    break;
+                }
+            }
+        }
+
+        var wb = new ExcelJS.Workbook();
+        var sheetName = (PROJ_NAME || 'Sheet1').substring(0, 31);
+        var ws = wb.addWorksheet(sheetName);
+
+        // Indent prefix for hierarchy (3 spaces per level)
+        var INDENT_STR = '   ';
+
+        // Set up columns with widths
+        var excelCols = [];
+        for (var ci = 0; ci < visibleCols.length; ci++) {
+            var colName = columns[visibleCols[ci]].name || 'Column' + (ci + 1);
+            excelCols.push({ header: colName, key: 'col' + ci, width: Math.max(colName.length + 2, 14) });
+        }
+        ws.columns = excelCols;
+
+        // Style header row
+        var headerExcelRow = ws.getRow(1);
+        headerExcelRow.eachCell(function (cell) {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+        headerExcelRow.height = 22;
+
+        // Data rows
+        for (var r = 0; r <= lastDataRow; r++) {
+            var rowValues = {};
+            var indent = getRowIndent(r);
+            for (var ci = 0; ci < visibleCols.length; ci++) {
+                var colIdx = visibleCols[ci];
+                var col = columns[colIdx];
+                var colType = col.type || 'text';
+                var key = r + '-' + colIdx;
+                var data = cellData[key] || {};
+                var val = data.text || '';
+                var cellVal = '';
+
+                if (colType === 'contacts' && val) {
+                    // Export contact IDs
+                    var ids = val.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+                    cellVal = ids.join(', ');
+                } else if (colType === 'checkbox') {
+                    cellVal = val === 'true' || val === '1' ? 'Yes' : (val ? 'No' : '');
+                } else if (colType === 'symbols') {
+                    cellVal = val;
+                } else if (colType === 'percent') {
+                    cellVal = (val !== '' && val !== undefined) ? parseFloat(val) : '';
+                } else if (colType === 'cost') {
+                    cellVal = (val !== '' && val !== undefined) ? parseFloat(val) : '';
+                } else if (colType === 'duration') {
+                    var durationText = '';
+                    if (col.durationStartCol !== undefined && col.durationEndCol !== undefined &&
+                        col.durationStartCol !== '' && col.durationEndCol !== '') {
+                        var startColIdx = -1, endColIdx = -1;
+                        for (var si = 0; si < columns.length; si++) {
+                            if (columns[si].id === col.durationStartCol) startColIdx = si;
+                            if (columns[si].id === col.durationEndCol) endColIdx = si;
+                        }
+                        if (startColIdx >= 0 && endColIdx >= 0) {
+                            var startDateStr = (cellData[r + '-' + startColIdx] && cellData[r + '-' + startColIdx].text) || '';
+                            var endDateStr = (cellData[r + '-' + endColIdx] && cellData[r + '-' + endColIdx].text) || '';
+                            if (startDateStr && endDateStr) {
+                                var sd = new Date(startDateStr);
+                                var ed = new Date(endDateStr);
+                                if (!isNaN(sd.getTime()) && !isNaN(ed.getTime())) {
+                                    durationText = Math.round((ed - sd) / (1000 * 60 * 60 * 24)) + 'd';
+                                }
+                            }
+                        }
+                    }
+                    cellVal = durationText;
+                } else if (colType === 'date') {
+                    cellVal = val ? formatDateDisplay(val) : '';
+                } else if (colType === 'predecessor') {
+                    cellVal = val;
+                } else {
+                    // For the first column (Task Name), prepend indent spaces
+                    if (colIdx === 0 && indent > 0 && val) {
+                        var prefix = '';
+                        for (var ind = 0; ind < indent; ind++) prefix += INDENT_STR;
+                        cellVal = prefix + val;
+                    } else {
+                        cellVal = val;
+                    }
+                }
+
+                rowValues['col' + ci] = cellVal;
+
+                // Track column width
+                var cellLen = String(cellVal || '').length + 2;
+                if (cellLen > ws.getColumn(ci + 1).width) {
+                    ws.getColumn(ci + 1).width = Math.min(cellLen, 50);
+                }
+            }
+
+            var excelRow = ws.addRow(rowValues);
+
+            // Apply styling based on indent
+            if (indent === 0) {
+                // Parent task: light grey background on entire row, bold dark blue on Task Name cell only
+                excelRow.eachCell({ includeEmpty: true }, function (cell) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+                });
+                excelRow.getCell(1).font = { bold: true, color: { argb: 'FF1F3864' }, size: 11 };
+            } else if (indent >= 2) {
+                // Sub-subtask (indent 2+): italic on Task Name cell only
+                excelRow.getCell(1).font = { italic: true, size: 11 };
+            }
+        }
+
+        // Apply column-level alignment for specific types
+        for (var ci = 0; ci < visibleCols.length; ci++) {
+            var colType = columns[visibleCols[ci]].type || 'text';
+            if (colType === 'duration') {
+                ws.getColumn(ci + 1).eachCell(function (cell, rowNum) {
+                    if (rowNum > 1) cell.alignment = { horizontal: 'right' };
+                });
+            } else if (colType === 'dropdown' && columns[visibleCols[ci]].name === 'Status') {
+                ws.getColumn(ci + 1).eachCell(function (cell, rowNum) {
+                    if (rowNum > 1) cell.alignment = { horizontal: 'center' };
+                });
+            }
+        }
+
+        // Generate and download
+        var fileName = PROJ_NAME + '.xlsx';
+        wb.xlsx.writeBuffer().then(function (buffer) {
+            var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, fileName);
+            showToast('Exported to ' + fileName);
+        }).catch(function (err) {
+            console.error('Export failed:', err);
+            showToast('Export failed. See console for details.');
+        });
+    }
 
     // ========== Project Picker Events ==========
     $('#picker-new-group-btn').on('click', function () {
@@ -3397,6 +4034,210 @@ $(document).ready(function () {
             e.preventDefault();
             $('#picker-create-btn').click();
         }
+    });
+
+    // ========== Auto-Merge on Conflict ==========
+    function mergeAndRetrySave(callback) {
+        $.ajax({
+            url: '/api/load-group',
+            method: 'GET',
+            data: { project: PROJ_NAME },
+            dataType: 'json',
+            timeout: 5000,
+            success: function (resp) {
+                if (resp && resp.ok && resp.data) {
+                    var serverVersion = resp.version || 0;
+                    var serverState = resp.data;
+                    var localState = collectState();
+
+                    // Merge local changes on top of server state
+                    var merged = mergeGridState(baselineState, localState, serverState);
+
+                    // Load merged state into UI
+                    loadState(merged);
+                    projectVersion = serverVersion;
+
+                    // Retry save with merged data
+                    pendingSave = false;
+                    var retryPayload = {
+                        project: PROJ_NAME,
+                        version: projectVersion,
+                        data: collectState()
+                    };
+
+                    $.ajax({
+                        url: '/api/save-tasks',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(retryPayload),
+                        timeout: 10000,
+                        success: function (resp2) {
+                            isSavingToServer = false;
+                            if (resp2 && resp2.ok) {
+                                projectVersion = resp2.version;
+                                storeBaseline();
+                                updateSaveStatus('saved');
+                                hideVersionNotify();
+                            } else {
+                                updateSaveStatus('offline');
+                            }
+                            if (callback) callback(true);
+                        },
+                        error: function () {
+                            isSavingToServer = false;
+                            updateSaveStatus('offline');
+                            if (callback) callback(false);
+                        }
+                    });
+                } else {
+                    // Couldn't load server data for merge — fall back to conflict notification
+                    isSavingToServer = false;
+                    showVersionConflict();
+                    pendingSave = false;
+                    if (callback) callback(false);
+                }
+            },
+            error: function () {
+                isSavingToServer = false;
+                updateSaveStatus('offline');
+                pendingSave = false;
+                if (callback) callback(false);
+            }
+        });
+    }
+
+    /**
+     * Three-way merge for grid state at the cell level.
+     * - baseline: state as loaded from server (before local edits)
+     * - local: current in-memory state (with the user's edits)
+     * - server: latest state fetched from server (another user's edits)
+     *
+     * Cells that the local user changed (vs baseline) are applied on top of
+     * the server state. Everything else uses the server's version.
+     */
+    function mergeGridState(baseline, local, server) {
+        // Deep clone server as the base for the merge
+        var merged = JSON.parse(JSON.stringify(server));
+        if (!baseline) return merged; // no baseline — can't determine local changes
+
+        var baselineCells = baseline.cellData || {};
+        var localCells = local.cellData || {};
+
+        // Apply locally changed or added cells
+        for (var key in localCells) {
+            var localStr = JSON.stringify(localCells[key]);
+            var baselineStr = baselineCells[key] ? JSON.stringify(baselineCells[key]) : undefined;
+            if (localStr !== baselineStr) {
+                if (!merged.cellData) merged.cellData = {};
+                merged.cellData[key] = JSON.parse(localStr);
+            }
+        }
+
+        // Remove locally deleted cells
+        for (var key in baselineCells) {
+            if (!(key in localCells) && merged.cellData && (key in merged.cellData)) {
+                delete merged.cellData[key];
+            }
+        }
+
+        // Use max totalRows
+        merged.totalRows = Math.max(local.totalRows || 0, merged.totalRows || 0);
+
+        // If local columns were modified, prefer local columns
+        if (JSON.stringify(local.columns) !== JSON.stringify(baseline.columns)) {
+            merged.columns = JSON.parse(JSON.stringify(local.columns));
+            merged.colIdCounter = Math.max(local.colIdCounter || 0, merged.colIdCounter || 0);
+        }
+
+        // Merge row-level metadata (notes, attachments, comments)
+        mergeRowMetadata('rowNotes', baseline, local, merged);
+        mergeRowMetadata('rowAttachments', baseline, local, merged);
+        mergeRowMetadata('rowComments', baseline, local, merged);
+
+        // Preserve local collapsedRows
+        if (JSON.stringify(local.collapsedRows) !== JSON.stringify(baseline.collapsedRows)) {
+            merged.collapsedRows = JSON.parse(JSON.stringify(local.collapsedRows || {}));
+        }
+
+        return merged;
+    }
+
+    function mergeRowMetadata(field, baseline, local, merged) {
+        var baselineData = (baseline && baseline[field]) || {};
+        var localData = local[field] || {};
+
+        for (var key in localData) {
+            var localStr = JSON.stringify(localData[key]);
+            var baselineStr = baselineData[key] ? JSON.stringify(baselineData[key]) : undefined;
+            if (localStr !== baselineStr) {
+                if (!merged[field]) merged[field] = {};
+                merged[field][key] = JSON.parse(localStr);
+            }
+        }
+
+        for (var key in baselineData) {
+            if (!(key in localData) && merged[field] && (key in merged[field])) {
+                delete merged[field][key];
+            }
+        }
+    }
+
+    // ========== Version Polling & Conflict Notification ==========
+    function startVersionPolling() {
+        stopVersionPolling();
+        if (!PROJ_NAME || !isGroupProject) return;
+        versionPollTimer = setInterval(function () {
+            checkServerVersion();
+        }, VERSION_POLL_MS);
+    }
+
+    function stopVersionPolling() {
+        if (versionPollTimer) {
+            clearInterval(versionPollTimer);
+            versionPollTimer = null;
+        }
+    }
+
+    function checkServerVersion() {
+        if (!PROJ_NAME || !isGroupProject) return;
+        $.ajax({
+            url: '/api/project-version',
+            method: 'GET',
+            data: { project: PROJ_NAME },
+            dataType: 'json',
+            timeout: 5000,
+            success: function (resp) {
+                if (resp && resp.ok && resp.version !== undefined) {
+                    if (resp.version > projectVersion) {
+                        showVersionNotify('This project has been updated by another user.');
+                    }
+                }
+            }
+        });
+    }
+
+    function showVersionNotify(message) {
+        $('#version-notify-text').text(message);
+        $('#version-notify-bar').slideDown(200);
+    }
+
+    function hideVersionNotify() {
+        $('#version-notify-bar').slideUp(200);
+    }
+
+    function showVersionConflict() {
+        $('#version-notify-text').text('Could not automatically merge changes. Please reload to get the latest version, then re-apply your edits.');
+        $('#version-notify-bar').slideDown(200);
+        updateSaveStatus('error');
+    }
+
+    // Notification bar button handlers
+    $(document).on('click', '#version-notify-reload', function () {
+        location.reload();
+    });
+
+    $(document).on('click', '#version-notify-dismiss', function () {
+        hideVersionNotify();
     });
 
     // ========== Start ==========

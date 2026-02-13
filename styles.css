@@ -155,6 +155,10 @@ body {
     pointer-events: none;
 }
 
+#btn-export-excel .fa-file-excel {
+    color: #217346;
+}
+
 .color-indicator {
     position: absolute;
     bottom: 2px;
@@ -167,6 +171,132 @@ body {
 
 .color-picker-input {
     display: none;
+}
+
+/* === Protected View Bar === */
+#protected-view-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: linear-gradient(180deg, #FFF3CD 0%, #FDEAB5 100%);
+    border-bottom: 1px solid #E0C97B;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    animation: pvSlideDown 0.3s ease-out;
+    min-height: 36px;
+}
+
+#protected-view-bar.visible {
+    display: flex;
+}
+
+@keyframes pvSlideDown {
+    from { opacity: 0; transform: translateY(-100%); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.pv-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pv-icon {
+    font-size: 15px;
+    color: #A67C00;
+}
+
+.pv-text {
+    font-size: 12.5px;
+    color: #6B5200;
+    letter-spacing: 0.01em;
+}
+
+.pv-text strong {
+    font-weight: 700;
+    color: #5A4400;
+    letter-spacing: 0.04em;
+}
+
+.pv-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.pv-enable-btn {
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(180deg, #6A8EC7 0%, #4A6FA5 100%);
+    border: 1px solid #3E5F8A;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.pv-enable-btn:hover {
+    background: linear-gradient(180deg, #7A9ED7 0%, #5A7FB5 100%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.pv-enable-btn:active {
+    background: linear-gradient(180deg, #4A6FA5 0%, #3E5F8A 100%);
+}
+
+.pv-enable-btn i {
+    margin-right: 4px;
+    font-size: 11px;
+}
+
+.pv-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(160, 120, 20, 0.15);
+    border: 1px solid rgba(160, 120, 20, 0.3);
+    border-radius: 14px;
+    cursor: pointer;
+    color: #7A5C00;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.15s;
+}
+
+.pv-close-btn:hover {
+    background: rgba(160, 120, 20, 0.3);
+    border-color: rgba(160, 120, 20, 0.5);
+    color: #5A4400;
+    transform: scale(1.08);
+}
+
+/* Protected mode: disable save and delete project buttons */
+body.protected-mode #btn-save,
+body.protected-mode #btn-delete-project {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+/* Save status: protected and editing-enabled states */
+#save-status.protected {
+    color: #9A7200;
+}
+
+#save-status.protected #save-status-icon {
+    color: #B8860B;
+}
+
+#save-status.editing-enabled {
+    color: #2E7D32;
+}
+
+#save-status.editing-enabled #save-status-icon {
+    color: #2E7D32;
 }
 
 /* === Spreadsheet === */
@@ -529,6 +659,11 @@ td.cell.locked {
     background: #2a5db0;
     color: #fff;
     font-weight: 600;
+}
+
+/* Parent row highlight */
+#spreadsheet tbody tr.parent-row-highlight td {
+    background-color: #F2F2F2;
 }
 
 /* Column highlight on select */
@@ -1142,6 +1277,11 @@ td.frozen {
     max-width: 550px;
 }
 
+.sidebar-title-icon {
+    color: #4A7EC2;
+    margin-right: 4px;
+}
+
 .sidebar-header-actions {
     display: flex;
     gap: 8px;
@@ -1186,6 +1326,33 @@ td.frozen {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+}
+
+.sidebar-right-notes {
+    padding: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-notes-input {
+    width: 100%;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: #333;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+    min-height: 50px;
+    line-height: 1.5;
+    margin-top: 8px;
+    box-sizing: border-box;
+}
+
+.sidebar-notes-input:focus {
+    border-color: #2a5db0;
 }
 
 .sidebar-right-top {
@@ -1375,6 +1542,49 @@ td.frozen {
 
 .attachment-item .att-remove:hover {
     color: #ff0000;
+}
+
+.attachment-item a.att-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #2a5db0;
+    text-decoration: none;
+}
+
+.attachment-item a.att-name:hover {
+    text-decoration: underline;
+}
+
+/* Upload progress bar */
+.att-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #e0e0e0;
+    border-radius: 0 0 4px 4px;
+    overflow: hidden;
+}
+
+.att-progress-bar {
+    height: 100%;
+    width: 0;
+    background: #2a5db0;
+    border-radius: 0 0 4px 4px;
+    transition: width 0.15s ease;
+}
+
+.attachment-item.uploading {
+    position: relative;
+    opacity: 0.7;
+}
+
+.attachment-item.uploading .att-remove {
+    display: none;
 }
 
 /* Comments */
