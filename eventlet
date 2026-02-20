@@ -1,0 +1,29 @@
+  1. The socketio.run() line — pass your SSL cert paths and disable debug mode:
+
+  socketio.run(app, debug=False, host='0.0.0.0', port=443,
+               certfile='.chain.pem', keyfile='.key.pem')
+
+  Key changes:
+  - debug=False — never run debug mode in production (it enables the interactive debugger and reloader, which are security risks)
+  - allow_unsafe_werkzeug=True — remove this; it's a dev-only flag. For production you should use a proper WSGI server (see below)
+  - certfile / keyfile — point to your .chain.pem and .key.pem files
+  - host='0.0.0.0' — bind to all interfaces (currently it defaults to 127.0.0.1)
+  - port=443 — standard HTTPS port
+
+  2. Use a production server instead of Werkzeug. The built-in Werkzeug server is not designed for production. With Flask-SocketIO, the recommended approach is to use eventlet or gevent as the async backend:
+
+  pip install eventlet
+
+  Then socketio.run() will automatically use eventlet when it's installed. Alternatively, you can put this behind gunicorn:
+
+  gunicorn --certfile=.chain.pem --keyfile=.key.pem \
+           --bind 0.0.0.0:443 --worker-class eventlet \
+           -w 1 server:app
+
+  3. CORS — line 11 has cors_allowed_origins="*". In production, restrict this to your actual domain:
+
+  socketio = SocketIO(app, cors_allowed_origins="https://yourdomain.com")
+
+  4. No client-side changes needed — as long as your frontend connects using https:// URLs, Socket.IO will automatically use wss:// (secure WebSocket) instead of ws://.
+
+  The most important takeaway: don't use the built-in Werkzeug server for production. Use gunicorn with eventlet (or a reverse proxy like nginx handling SSL termination in front of your app).
