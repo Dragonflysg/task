@@ -27,3 +27,32 @@
   4. No client-side changes needed — as long as your frontend connects using https:// URLs, Socket.IO will automatically use wss:// (secure WebSocket) instead of ws://.
 
   The most important takeaway: don't use the built-in Werkzeug server for production. Use gunicorn with eventlet (or a reverse proxy like nginx handling SSL termination in front of your app).
+
+
+ im confused, you said i should install eventlet, should i also install gunicorn, or is it just one of the either that i should use?
+
+● Good question. There are two approaches — pick one:
+
+  Option A: socketio.run() with eventlet (simpler)
+
+  Just install eventlet. Flask-SocketIO will detect it and use it as the production server automatically. You'd keep using socketio.run() in your code:
+
+  pip install eventlet
+  socketio.run(app, host='0.0.0.0', port=443,
+               certfile='.chain.pem', keyfile='.key.pem')
+
+  This is the easier setup and works fine for moderate traffic.
+
+  Option B: gunicorn + eventlet (more robust)
+
+  Install both eventlet and gunicorn. You remove the socketio.run() call and instead launch the app via the command line:
+
+  pip install eventlet gunicorn
+  gunicorn --certfile=.chain.pem --keyfile=.key.pem \
+           --bind 0.0.0.0:443 --worker-class eventlet \
+           -w 1 server:app
+
+  This gives you more control (graceful restarts, process management, logging config, etc.) and is the more "standard" production deployment.
+
+  ---
+  For your case, Option A is probably the easiest path — just install eventlet and update the socketio.run() line. You can always move to Option B later if you need more operational control.
