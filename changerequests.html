@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Requests</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="changerequests.css">
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div id="top-bar">
+        <div class="top-bar-left">
+            <img id="company-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'">
+            <div id="title-block">
+                <a href="index.html" id="page-title">Project Hub</a>
+                <span id="page-subtitle">Change Requests</span>
+            </div>
+        </div>
+        <div id="top-bar-center">
+            <span id="project-name-label"></span>
+        </div>
+        <div class="top-bar-right">
+            <a href="index.html" class="nav-link"><i class="fa fa-house"></i> Home</a>
+            <a href="task.html" class="nav-link"><i class="fa fa-clipboard-list"></i> Tasks</a>
+            <a href="grid.html" class="nav-link"><i class="fa fa-table-columns"></i> Grid</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+
+        <!-- Submission Area -->
+        <div id="submit-section">
+            <div class="submit-card">
+                <div class="submit-header">
+                    <i class="fa fa-pen-to-square"></i>
+                    <span>New Change Request</span>
+                </div>
+                <textarea id="request-text" placeholder="Describe your change request, idea, bug found or just comment anything about this project" rows="4"></textarea>
+                <div class="submit-footer">
+                    <button id="btn-submit" class="btn-submit"><i class="fa fa-paper-plane"></i> Submit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div id="filter-bar">
+            <label id="filter-my-items-label">
+                <input type="checkbox" id="filter-my-items"> Show only items which I have submitted
+            </label>
+        </div>
+
+        <!-- Request Cards -->
+        <div id="requests-list">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" style="display:none;">
+            <div class="empty-icon"><i class="fa fa-inbox"></i></div>
+            <h2>No change requests yet</h2>
+            <p>Submit a bug report, feature idea, or modification request above.</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="changerequests.js"></script>
+</body>
+</html>
