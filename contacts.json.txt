@@ -1,6 +1,0 @@
-[
-{'id':'ab1234','name':'Andy Bundy'},
-{'id':'jv8888','name':'Jules Verne'},
-{'id':'ae3323','name':'Albert Einstein'},
-{'id':'hl3333','name':'Heidi Lamar'}
-]
