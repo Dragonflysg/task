@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="task.css">
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div id="top-bar">
+        <div class="top-bar-left">
+            <img id="company-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'">
+            <div id="title-block">
+                <a href="index.html" id="page-title">Project Hub</a>
+                <span id="page-subtitle">Tasks</span>
+            </div>
+        </div>
+        <div id="top-bar-center">
+            <span id="project-name-label"></span>
+        </div>
+        <div class="top-bar-right">
+            <a href="index.html" class="nav-link"><i class="fa fa-house"></i> Home</a>
+            <a href="grid.html" class="nav-link"><i class="fa fa-table-columns"></i> Grid</a>
+
+
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div id="app-layout">
+
+        <!-- Left Sidebar: Task List -->
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <button id="btn-new-task" title="New Task"><i class="fa fa-plus"></i> Task</button>
+            </div>
+            <div id="sidebar-filter">
+                <label id="filter-my-tasks-label">
+                    <input type="checkbox" id="filter-my-tasks"> Show only my Assigned Tasks
+                </label>
+                <div id="filter-section-label">Filter</div>
+                <div id="filter-row">
+                    <input type="text" id="filter-text" placeholder="Type to filter (min 3 chars)...">
+                    <select id="filter-by">
+                        <option value="task">by Task</option>
+                        <option value="subtask">by Subtasks</option>
+                        <option value="assignee">by Assignee</option>
+                    </select>
+                </div>
+            </div>
+            <div id="task-list">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Sidebar Toggle Tab -->
+        <div id="sidebar-toggle-tab" title="Toggle sidebar">
+            <i class="fa fa-chevron-left"></i>
+        </div>
+
+        <!-- Resize Handle -->
+        <div id="sidebar-resize-handle"></div>
+
+        <!-- Right Panel: Task Detail -->
+        <div id="detail-panel">
+            <!-- Empty state -->
+            <div id="empty-state">
+                <div class="empty-icon"><i class="fa fa-clipboard-list"></i></div>
+                <h2>No task selected</h2>
+                <p>Create a new task from the sidebar or select an existing one to view details.</p>
+            </div>
+
+            <!-- Task detail (hidden until a task is selected) -->
+            <div id="task-detail" style="display:none;">
+                <div class="detail-header">
+                    <div class="detail-title-label">
+                        <span class="detail-title-label-text"><i class="fa fa-bookmark"></i> Task Name</span>
+                        <a href="update.html" class="btn-edit-kanban" title="Edit in Kanban view">
+                            <i class="fa fa-table-columns"></i> Edit in Kanban
+                        </a>
+                    </div>
+                    <div class="detail-title-row">
+                        <input type="text" id="detail-task-name" placeholder="Enter task name..." spellcheck="false">
+                        <button id="btn-flag-task" class="icon-btn" title="Toggle flag"><i class="fa fa-flag"></i></button>
+                        <button id="btn-delete-task" class="icon-btn icon-btn-danger" title="Delete task"><i class="fa fa-trash"></i></button>
+                    </div>
+                    <div class="detail-meta">
+                        <label>Start Date
+                            <div class="date-input-wrap">
+                                <input type="text" id="detail-start-date" placeholder="mm/dd/yyyy">
+                                <input type="date" class="date-hidden-picker" data-target="#detail-start-date" tabindex="-1">
+                                <button type="button" class="date-picker-btn" data-picker="#detail-start-date" tabindex="-1"><i class="fa fa-calendar-days"></i></button>
+                            </div>
+                        </label>
+                        <label>End Date
+                            <div class="date-input-wrap">
+                                <input type="text" id="detail-end-date" placeholder="mm/dd/yyyy">
+                                <input type="date" class="date-hidden-picker" data-target="#detail-end-date" tabindex="-1">
+                                <button type="button" class="date-picker-btn" data-picker="#detail-end-date" tabindex="-1"><i class="fa fa-calendar-days"></i></button>
+                            </div>
+                        </label>
+                        <label>Duration
+                            <input type="text" id="detail-duration" style="width:70px;" placeholder="e.g. 30">
+                        </label>
+                        <label>Status
+                            <select id="detail-status">
+                                <option value="Not Started">Not Started</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </label>
+                        <label>% Complete
+                            <input type="number" id="detail-percent" min="0" max="100" value="0">
+                        </label>
+                        <label>Cost
+                            <div class="cost-input-wrap">
+                                <i class="fa fa-dollar-sign cost-icon"></i>
+                                <input type="text" id="detail-cost" placeholder="0">
+                            </div>
+                        </label>
+                    </div>
+                    <div class="detail-meta" style="margin-top: 8px;">
+                        <label>Predecessor
+                            <div class="predecessor-picker" id="detail-predecessor-picker">
+                                <div class="pp-chips-area">
+                                    <input type="text" class="pp-filter-input" placeholder="Select...">
+                                </div>
+                                <button type="button" class="pp-dropdown-btn"><i class="fa fa-caret-down"></i></button>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="detail-meta" style="margin-top: 8px;">
+                        <label>Assigned To
+                            <div class="contact-picker" id="detail-assigned-picker" data-target="header">
+                                <div class="cp-chips-area">
+                                    <input type="text" class="cp-filter-input" placeholder="Select...">
+                                </div>
+                                <button type="button" class="cp-dropdown-btn"><i class="fa fa-caret-down"></i></button>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Description and Documents -->
+                <div class="section-divider"><span class="section-divider-label">Notes & Attachments</span></div>
+                <div class="desc-docs-section">
+                    <div class="desc-docs-header no-border">
+                        <div class="desc-docs-header-left">
+                            <button id="btn-toggle-desc-docs" class="collapse-toggle-btn collapsed" title="Collapse/Expand">
+                                <i class="fa fa-chevron-up"></i>
+                            </button>
+                            <span class="desc-docs-title"><i class="fa fa-file-lines"></i> Notes and Attachments</span>
+                        </div>
+                    </div>
+                    <div id="desc-docs-body" class="desc-docs-body collapsed">
+                        <div class="desc-docs-content">
+                            <div class="desc-side">
+                                <label class="desc-label">Notes</label>
+                                <textarea id="detail-description" placeholder="You can add additional comments about this project" rows="5"></textarea>
+                            </div>
+                            <div class="docs-side">
+                                <div class="docs-side-header">
+                                    <label class="desc-label">Attachments</label>
+                                    <label class="btn-task-add-attachment" title="Add attachment">
+                                        <i class="fa fa-plus"></i> Add
+                                        <input type="file" id="task-attach-input" multiple
+                                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;">
+                                    </label>
+                                </div>
+                                <div id="task-attachments-area" class="task-attachments-area">
+                                    <div id="task-attachments-placeholder" class="task-attachments-placeholder">
+                                        <i class="fa fa-cloud-arrow-up"></i>
+                                        <p>Drop your files here</p>
+                                        <span>or click Add above</span>
+                                    </div>
+                                    <div id="task-attachment-list" class="task-attachment-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subtask Table -->
+                <div class="section-divider"><span class="section-divider-label">Subtasks</span></div>
+                <div class="subtask-section">
+                    <div class="subtask-section-header">
+                        <span class="subtask-section-title"><i class="fa fa-list-check"></i> Subtasks</span>
+                        <button id="btn-add-subtask" title="Add Subtask"><i class="fa fa-plus"></i> Add Subtask</button>
+                    </div>
+                    <div class="subtask-table-wrapper">
+                        <table id="subtask-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-tree">Task Name</th>
+                                    <th class="col-date">Start Date</th>
+                                    <th class="col-date">End Date</th>
+                                    <th class="col-duration">Duration</th>
+                                    <th class="col-predecessor">Predecessor</th>
+                                    <th class="col-pct">% Complete</th>
+                                    <th class="col-status">Status</th>
+                                    <th class="col-assigned">Assigned To</th>
+                                    <th class="col-cost">Cost</th>
+                                    <th class="col-actions"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="subtask-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="subtask-empty" style="display:none;">
+                        <p>No subtasks yet. Click "Add Subtask" to break this task down.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Contact Dropdown -->
+    <div id="contact-dropdown" style="display:none;">
+        <div id="contact-dropdown-list"></div>
+        <div class="contact-dropdown-footer">
+            <span class="add-new-contact-icon"><i class="fa fa-user"></i></span>
+            <a href="#" id="btn-add-new-contact">+ Add New</a>
+        </div>
+    </div>
+
+    <!-- Shared Predecessor Dropdown -->
+    <div id="predecessor-dropdown" style="display:none;">
+        <input type="text" id="pred-search-filter" placeholder="Search tasks...">
+        <div id="pred-dropdown-list"></div>
+    </div>
+
+    <!-- Add Contact Dialog -->
+    <div id="add-contact-dialog" class="dialog-overlay" style="display:none;">
+        <div class="dialog-box">
+            <div class="dialog-title">Add New Contact</div>
+            <label class="dialog-label">Full Name
+                <input type="text" id="new-contact-name" placeholder="First Last">
+            </label>
+            <label class="dialog-label">ID
+                <input type="text" id="new-contact-id" placeholder="e.g. ab1234">
+            </label>
+            <div class="dialog-actions">
+                <button id="add-contact-cancel" class="dialog-btn-secondary">Cancel</button>
+                <button id="add-contact-ok" class="dialog-btn-primary">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Subtask Confirmation Dialog -->
+    <div id="delete-subtask-dialog" class="dialog-overlay" style="display:none;">
+        <div class="dialog-box">
+            <div class="dialog-title">Delete Subtask</div>
+            <p style="text-align:center; color:#555; margin:12px 0 4px;">Are you sure you want to delete the subtask</p>
+            <p id="delete-subtask-name" style="text-align:center; font-weight:700; color:#333; font-size:15px; margin:4px 0 16px;"></p>
+            <p id="delete-subtask-warning" style="display:none; text-align:center; color:#cc3333; font-weight:600; font-size:13px; margin:0 0 16px; padding:8px 12px; background:#fff0f0; border-radius:4px;">WARNING: this subtask contains further subtasks underneath which will also get deleted</p>
+            <div class="dialog-actions">
+                <button id="delete-subtask-cancel" class="dialog-btn-secondary">Cancel</button>
+                <button id="delete-subtask-confirm" class="dialog-btn-primary" style="background:#cc3333;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Project Picker -->
+    <div id="task-project-picker" class="task-dialog-overlay" style="display:none;">
+        <div class="task-dialog-box">
+            <div class="task-picker-header">
+                <h3>Select a Group Project</h3>
+                <button id="task-picker-new-btn" class="task-picker-btn"><i class="fa fa-plus"></i> New Project</button>
+            </div>
+            <div id="task-picker-new-row" class="task-picker-new-row" style="display:none;">
+                <input type="text" id="task-picker-new-name" placeholder="Enter project name">
+                <button id="task-picker-create-btn" class="task-picker-btn">Create</button>
+            </div>
+            <div id="task-picker-table-wrap">
+                <table id="task-picker-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Last Saved</th>
+                            <th>Entries</th>
+                        </tr>
+                    </thead>
+                    <tbody id="task-picker-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="task-picker-empty" class="task-picker-empty" style="display:none;">
+                No group projects yet. Create one to get started.
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="task.js"></script>
+</body>
+</html>
