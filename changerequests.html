@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Hub [Change Requests]</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="changerequests.css">
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div id="top-bar">
+        <div class="top-bar-left">
+            <img id="company-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'">
+            <div id="title-block">
+                <a href="index.html" id="page-title">Project Hub</a>
+                <span id="page-subtitle">Change Requests</span>
+            </div>
+        </div>
+        <div id="top-bar-center">
+            <span id="project-name-label"></span>
+        </div>
+        <div class="top-bar-right">
+            <a href="index.html" class="nav-link"><i class="fa fa-house"></i> Home</a>
+            <a href="design.html" class="nav-link"><i class="fa-solid fa-wand-magic-sparkles"></i> Design</a>
+            <a href="view.html" class="nav-link"><i class="fa-solid fa-table"></i> View</a>
+            <a href="update.html" class="nav-link"><i class="fa fa-columns"></i> Update</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+
+        <!-- Submission Area -->
+        <div id="submit-section">
+            <div class="submit-card">
+                <div class="submit-header">
+                    <i class="fa fa-pen-to-square"></i>
+                    <span>New Change Request</span>
+                </div>
+                <textarea id="request-text" placeholder="Describe your change request, idea, bug found or just comment anything about this project" rows="4"></textarea>
+                <div id="screenshot-preview" class="screenshot-preview"></div>
+                <div class="submit-footer">
+                    <div class="attach-area">
+                        <input type="file" id="screenshot-input" accept="image/*" multiple hidden>
+                        <button id="btn-attach" class="btn-attach"><i class="fa fa-camera"></i> Attach Screenshot</button>
+                        <span id="attach-hint" class="attach-hint">Up to 3 images</span>
+                    </div>
+                    <button id="btn-submit" class="btn-submit"><i class="fa fa-paper-plane"></i> Submit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div id="filter-bar">
+            <label id="filter-my-items-label">
+                <input type="checkbox" id="filter-my-items"> Show only items which I have submitted
+            </label>
+            <div id="search-wrapper">
+                <i class="fa fa-search"></i>
+                <input type="text" id="search-input" placeholder="Search cards...">
+            </div>
+        </div>
+
+        <!-- Kanban Board -->
+        <div id="kanban-board">
+            <div class="kanban-col" data-col="open">
+                <div class="kanban-col-header col-open">
+                    <span class="col-header-icon"><i class="fa fa-circle-dot"></i></span>
+                    <span class="col-header-title">Open</span>
+                    <span class="col-count" id="count-open">0</span>
+                </div>
+                <div class="kanban-col-body" data-col="open">
+                    <!-- cards injected by JS -->
+                </div>
+            </div>
+
+            <div class="kanban-col" data-col="in-progress">
+                <div class="kanban-col-header col-in-progress">
+                    <span class="col-header-icon"><i class="fa fa-spinner"></i></span>
+                    <span class="col-header-title">In Progress</span>
+                    <span class="col-count" id="count-in-progress">0</span>
+                </div>
+                <div class="kanban-col-body" data-col="in-progress">
+                    <!-- cards injected by JS -->
+                </div>
+            </div>
+
+            <div class="kanban-col" data-col="done">
+                <div class="kanban-col-header col-done">
+                    <span class="col-header-icon"><i class="fa fa-circle-check"></i></span>
+                    <span class="col-header-title">Done</span>
+                    <span class="col-count" id="count-done">0</span>
+                </div>
+                <div class="kanban-col-body" data-col="done">
+                    <!-- cards injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" style="display:none;">
+            <div class="empty-icon"><i class="fa fa-inbox"></i></div>
+            <h2>No change requests yet</h2>
+            <p>Submit a bug report, feature idea, or modification request above.</p>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="modal-overlay">
+        <div id="modal-dialog">
+            <button id="modal-close"><i class="fa fa-xmark"></i></button>
+            <div id="modal-body">
+                <!-- populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="changerequests.js"></script>
+</body>
+</html>
