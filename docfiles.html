@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Vault</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <style>
+    /* ─── RESET & BASE ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f0f4f8;
+      --bg2:        #ffffff;
+      --bg3:        #e8edf2;
+      --border:     #d0dae4;
+      --border-hi:  #a8bdd0;
+      --cyan:       #0077cc;
+      --cyan-dim:   #005fa3;
+      --cyan-glow:  rgba(0, 119, 204, 0.15);
+      --cyan-glow2: rgba(0, 119, 204, 0.05);
+      --red:        #e0213a;
+      --red-glow:   rgba(224, 33, 58, 0.15);
+      --green:      #00875a;
+      --green-glow: rgba(0, 135, 90, 0.15);
+      --text:       #2c3e50;
+      --text-dim:   #6b8299;
+      --text-hi:    #0d1f2d;
+      --font-display: 'Playfair Display', serif;
+      --font-mono:    'Nunito', sans-serif;
+      --font-body:    'Nunito', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* Subtle dot-grid texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(0,119,204,0.06) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── LAYOUT ───────────────────────────────────────────────── */
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 60px;
+    }
+
+    /* ─── HEADER ───────────────────────────────────────────────── */
+    header {
+      position: relative;
+      padding: 36px 48px 28px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #dce8f5 0%, var(--bg) 100%);
+      overflow: hidden;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--cyan) 30%, var(--cyan) 70%, transparent 100%);
+      opacity: 0.4;
+    }
+
+    .header-bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,119,204,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,119,204,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .vault-icon {
+      width: 52px;
+      height: 52px;
+      border: 2px solid var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan);
+      font-size: 22px;
+      box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-glow2);
+      flex-shrink: 0;
+      animation: pulse-border 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-glow2); }
+      50%       { box-shadow: 0 0 35px rgba(0,212,255,0.35), inset 0 0 30px rgba(0,212,255,0.12); }
+    }
+
+    .header-titles h1 {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      color: var(--text-hi);
+      line-height: 1;
+    }
+
+    .header-titles h1 span {
+      color: var(--cyan);
+    }
+
+    .header-titles .sub {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+      margin-top: 6px;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.01em;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ─── MAIN CONTENT ─────────────────────────────────────────── */
+    main {
+      flex: 1;
+      padding: 32px 48px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ─── CONTROLS ROW ─────────────────────────────────────────── */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .control-label {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text-dim);
+    }
+
+    .vault-select-wrap {
+      position: relative;
+    }
+
+    .vault-select-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--border-hi);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    select#vaultSelect {
+      appearance: none;
+      background: var(--bg3);
+      border: none;
+      color: var(--cyan);
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      padding: 10px 44px 10px 16px;
+      cursor: pointer;
+      outline: none;
+      min-width: 160px;
+      transition: background 0.2s;
+    }
+
+    select#vaultSelect:focus { background: #dce8f5; }
+
+    .vault-select-wrap .select-arrow {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--cyan);
+      font-size: 10px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ─── STAT CARDS ───────────────────────────────────────────── */
+    .stats-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 14px 20px;
+      flex: 1;
+      min-width: 160px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .stat-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+    .stat-card:hover::before { opacity: 1; }
+
+    .stat-label {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .stat-card.collection .stat-value {
+      font-size: 14px;
+      letter-spacing: 0.01em;
+      color: var(--text-hi);
+    }
+
+    /* ─── TABLE SECTION ────────────────────────────────────────── */
+    .table-section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+    }
+
+    /* Table toolbar */
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Custom checkbox */
+    .cb-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cb-wrap input[type="checkbox"] { display: none; }
+
+    .cb-box {
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid var(--border-hi);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      flex-shrink: 0;
+    }
+
+    .cb-wrap input:checked + .cb-box {
+      border-color: var(--cyan);
+      background: rgba(0,212,255,0.12);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .cb-wrap input:checked + .cb-box::after {
+      content: '';
+      width: 9px;
+      height: 5px;
+      border-left: 2px solid var(--cyan);
+      border-bottom: 2px solid var(--cyan);
+      transform: rotate(-45deg) translateY(-1px);
+      display: block;
+    }
+
+    .cb-label {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text-dim);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      outline: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.06);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn:hover::after { opacity: 1; }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 0 0 rgba(255,59,92,0);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      box-shadow: 0 0 20px var(--red-glow), 0 0 40px rgba(255,59,92,0.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-danger:disabled {
+      background: #f0c0c8;
+      color: #b08088;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .toolbar-right { margin-left: auto; }
+
+    .selected-count {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--text-dim);
+      letter-spacing: 0.01em;
+    }
+
+    .selected-count span {
+      color: var(--cyan);
+      font-weight: bold;
+    }
+
+    /* ─── TABLE ────────────────────────────────────────────────── */
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .file-table thead tr {
+      border-bottom: 1px solid var(--border-hi);
+      background: rgba(0,212,255,0.03);
+    }
+
+    .file-table thead th {
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding: 12px 20px;
+      text-align: left;
+    }
+
+    .file-table thead th.th-cb { width: 52px; text-align: center; }
+
+    .file-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .file-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.013); }
+
+    .file-table tbody tr:hover {
+      background: var(--cyan-glow2);
+      border-bottom-color: rgba(0,212,255,0.15);
+    }
+
+    .file-table tbody tr.row-selected {
+      background: rgba(0,212,255,0.07);
+      border-bottom-color: rgba(0,212,255,0.2);
+    }
+
+    .file-table tbody td {
+      padding: 13px 20px;
+      vertical-align: middle;
+    }
+
+    .file-table tbody td.td-cb { text-align: center; }
+
+    .file-name {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-name .fi {
+      color: var(--cyan-dim);
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    .file-name .ext-badge {
+      font-family: var(--font-body);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: rgba(0,119,204,0.08);
+      color: var(--cyan);
+      padding: 2px 8px;
+      border: 1px solid rgba(0,119,204,0.2);
+      border-radius: 4px;
+      margin-left: auto;
+    }
+
+    /* Row status indicators */
+    .row-status {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      letter-spacing: 0.01em;
+    }
+
+    .row-status.deleting { color: #ffb84d; }
+    .row-status.deleted  { color: var(--red); opacity: 0.7; }
+    .row-status.success  { color: var(--green); }
+    .row-status.error    { color: var(--red); }
+
+    /* ─── EMPTY / LOADING STATES ───────────────────────────────── */
+    .state-row td {
+      text-align: center;
+      padding: 60px 20px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      color: var(--text-dim);
+      letter-spacing: 0.01em;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(0,212,255,0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── TOAST ────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      border-left: 3px solid;
+      min-width: 280px;
+      max-width: 420px;
+      animation: toast-in 0.3s ease forwards;
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    .toast.success {
+      background: #f0faf5;
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 2px 12px rgba(0,135,90,0.12);
+    }
+
+    .toast.error {
+      background: #fff0f2;
+      border-color: var(--red);
+      color: var(--red);
+      box-shadow: 0 2px 12px rgba(224,33,58,0.12);
+    }
+
+    .toast.info {
+      background: #f0f7ff;
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 2px 12px rgba(0,119,204,0.12);
+    }
+
+    .toast.warning {
+      background: #fffaf0;
+      border-color: #e07b00;
+      color: #e07b00;
+      box-shadow: 0 2px 12px rgba(224,123,0,0.12);
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ─── DELETE PROGRESS BAR ──────────────────────────────────── */
+    #delete-progress {
+      display: none;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    .progress-label {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.01em;
+      margin-bottom: 8px;
+    }
+
+    .progress-label span { color: var(--cyan); }
+
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+      width: 0%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    /* ─── RESPONSIVE ───────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      header { padding: 24px; }
+      main   { padding: 20px 24px; }
+      .header-titles h1 { font-size: 20px; }
+      .stats-grid { gap: 8px; }
+      .stat-card { min-width: 130px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header>
+    <div class="header-bg-grid"></div>
+    <div class="header-inner">
+      <div class="vault-icon"><i class="fa-solid fa-vault"></i></div>
+      <div class="header-titles">
+        <h1>DOCUMENT <span>VAULT</span></h1>
+        <div class="sub">Secure File Repository Interface &nbsp;·&nbsp; v1.0.0</div>
+      </div>
+      <div class="header-right">
+        <div class="status-dot">
+          <div class="dot"></div>
+          <span>SYSTEM ONLINE</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main>
+
+    <!-- Vault Selector -->
+    <div class="controls-row">
+      <span class="control-label"><i class="fa-solid fa-layer-group" style="margin-right:6px;color:var(--cyan)"></i>Vault</span>
+      <div class="vault-select-wrap">
+        <select id="vaultSelect">
+          <option value="Vault1">Vault1</option>
+          <option value="Vault2">Vault2</option>
+        </select>
+        <i class="fa-solid fa-chevron-down select-arrow"></i>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-label"><i class="fa-solid fa-file-lines" style="margin-right:5px"></i>Document Count</div>
+        <div class="stat-value" id="s-doc-count">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><i class="fa-solid fa-file-circle-check" style="margin-right:5px"></i>File Count</div>
+        <div class="stat-value" id="s-file-count">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><i class="fa-solid fa-microchip" style="margin-right:5px"></i>Vector Index Size</div>
+        <div class="stat-value" id="s-vector-size">—</div>
+      </div>
+      <div class="stat-card collection">
+        <div class="stat-label"><i class="fa-solid fa-database" style="margin-right:5px"></i>Collection Name</div>
+        <div class="stat-value" id="s-collection">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><i class="fa-solid fa-hard-drive" style="margin-right:5px"></i>Storage Size</div>
+        <div class="stat-value" id="s-storage">—</div>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="table-section">
+
+      <!-- Toolbar -->
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <label class="cb-wrap" id="selectAllWrap" title="Select All">
+            <input type="checkbox" id="selectAllCb" />
+            <div class="cb-box"></div>
+            <span class="cb-label">Select All</span>
+          </label>
+        </div>
+
+        <button class="btn btn-danger" id="deleteBtn" disabled>
+          <i class="fa-solid fa-trash-can"></i>
+          Delete Selected
+        </button>
+
+        <div class="toolbar-right">
+          <span class="selected-count" id="selectedCount"><span id="selNum">0</span> selected</span>
+        </div>
+      </div>
+
+      <!-- Delete progress -->
+      <div id="delete-progress">
+        <div class="progress-label">Deleting file <span id="prog-current">0</span> of <span id="prog-total">0</span></div>
+        <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+      </div>
+
+      <!-- Table -->
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th class="th-cb"></th>
+            <th>Filename</th>
+            <th style="width:140px;text-align:right">Status</th>
+          </tr>
+        </thead>
+        <tbody id="fileTableBody">
+          <tr class="state-row">
+            <td colspan="3"><span class="spinner"></span>Loading vault data…</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div><!-- /table-section -->
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- ──────────────────────────────────────────────────────────────
+     JAVASCRIPT
+───────────────────────────────────────────────────────────────── -->
+<script>
+$(function () {
+
+  /* ── CONFIG ─────────────────────────────────────────────── */
+  const API_GET    = 'https://api.example.com/vault';   // GET ?vault=<value>
+  const API_DELETE = 'https://api.example.com/delete';  // POST {vault, filename}
+  const USE_DUMMY  = true;  // Set false to use real API
+
+  /* Dummy API response (mirrors actual shape) */
+  const DUMMY = {
+    statusCode: 200,
+    status: true,
+    response: {
+      document_count:    238,
+      vector_index_size: 744480,
+      Collection_name:   'secrets of dumbledore',
+      storage_size_bytes: 2717850,
+      file_list: ['file1.pdf', 'file2.pdf', 'file3.pdf', 'file10.pdf'],
+      file_count: 5
+    }
+  };
+
+  /* ── HELPERS ─────────────────────────────────────────────── */
+  function formatBytes (bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + ' MB';
+    if (bytes >= 1024)    return (bytes / 1024).toFixed(1) + ' KB';
+    return bytes + ' B';
+  }
+
+  function formatNum (n) {
+    return Number(n).toLocaleString();
+  }
+
+  let toastTimer = {};
+
+  function showToast (msg, type = 'info', duration = 3500) {
+    const id  = 'toast-' + Date.now();
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
+    const $t = $(`
+      <div class="toast ${type}" id="${id}">
+        <i class="fa-solid ${icons[type] || icons.info}"></i>
+        <span>${msg}</span>
+      </div>
+    `);
+    $('#toast-container').append($t);
+    toastTimer[id] = setTimeout(() => {
+      $t.fadeOut(300, () => $t.remove());
+    }, duration);
+  }
+
+  /* ── STATE ───────────────────────────────────────────────── */
+  let currentFiles = [];
+  let isDeleting   = false;
+
+  /* ── FETCH VAULT DATA ────────────────────────────────────── */
+  function fetchVault () {
+    const vault = $('#vaultSelect').val();
+    setLoadingState();
+
+    if (USE_DUMMY) {
+      // Simulate network delay
+      setTimeout(() => handleVaultResponse(DUMMY, vault), 600);
+      return;
+    }
+
+    $.ajax({
+      url:     API_GET,
+      method:  'GET',
+      data:    { vault },
+      success: function (data) { handleVaultResponse(data, vault); },
+      error:   function (xhr) {
+        showToast('Failed to load vault data: ' + (xhr.statusText || 'Network error'), 'error');
+        renderError();
+      }
+    });
+  }
+
+  function setLoadingState () {
+    $('#fileTableBody').html(`
+      <tr class="state-row">
+        <td colspan="3"><span class="spinner"></span>Loading vault…</td>
+      </tr>
+    `);
+    $('#s-doc-count, #s-file-count, #s-vector-size, #s-collection, #s-storage').text('—');
+    updateSelectionUI();
+  }
+
+  function renderError () {
+    $('#fileTableBody').html(`
+      <tr class="state-row">
+        <td colspan="3" style="color:var(--red)"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px"></i>Failed to load data.</td>
+      </tr>
+    `);
+  }
+
+  function handleVaultResponse (data, vault) {
+    if (!data || !data.status || !data.response) {
+      showToast('Unexpected API response', 'warning');
+      renderError();
+      return;
+    }
+
+    const r = data.response;
+    currentFiles = Array.isArray(r.file_list) ? [...r.file_list] : [];
+
+    /* Stats */
+    $('#s-doc-count').text(formatNum(r.document_count));
+    $('#s-file-count').text(formatNum(r.file_count));
+    $('#s-vector-size').text(formatNum(r.vector_index_size));
+    $('#s-collection').text(r.Collection_name || '—');
+    $('#s-storage').text(formatBytes(r.storage_size_bytes));
+
+    renderTable();
+    showToast(`Vault "${vault}" loaded — ${currentFiles.length} file(s)`, 'success', 2500);
+  }
+
+  /* ── RENDER TABLE ────────────────────────────────────────── */
+  function renderTable () {
+    const $body = $('#fileTableBody').empty();
+
+    if (currentFiles.length === 0) {
+      $body.html(`
+        <tr class="state-row">
+          <td colspan="3"><i class="fa-solid fa-folder-open" style="margin-right:8px;color:var(--text-dim)"></i>No files in this vault.</td>
+        </tr>
+      `);
+      updateSelectionUI();
+      return;
+    }
+
+    function getFileIcon (filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const map = {
+        pdf:  'fa-file-pdf',
+        doc:  'fa-file-word',  docx: 'fa-file-word',
+        xls:  'fa-file-excel', xlsx: 'fa-file-excel',
+        ppt:  'fa-file-powerpoint', pptx: 'fa-file-powerpoint',
+        txt:  'fa-file-lines',
+        csv:  'fa-file-csv',
+        zip:  'fa-file-zipper', rar: 'fa-file-zipper', gz: 'fa-file-zipper',
+        jpg:  'fa-file-image', jpeg: 'fa-file-image', png: 'fa-file-image', gif: 'fa-file-image', svg: 'fa-file-image',
+        mp4:  'fa-file-video', mov: 'fa-file-video', avi: 'fa-file-video',
+        mp3:  'fa-file-audio', wav: 'fa-file-audio',
+        js:   'fa-file-code',  ts: 'fa-file-code', py: 'fa-file-code', html: 'fa-file-code', css: 'fa-file-code', json: 'fa-file-code',
+        md:   'fa-file-lines',
+      };
+      return map[ext] || 'fa-file';
+    }
+
+    currentFiles.forEach(function (fname) {
+      const ext     = fname.split('.').pop().toUpperCase();
+      const iconCls = getFileIcon(fname);
+      const $row = $(`
+        <tr data-file="${fname}">
+          <td class="td-cb">
+            <label class="cb-wrap">
+              <input type="checkbox" class="row-cb" />
+              <div class="cb-box"></div>
+            </label>
+          </td>
+          <td>
+            <div class="file-name">
+              <i class="fa-solid ${iconCls} fi"></i>
+              <span>${fname}</span>
+              <span class="ext-badge">${ext}</span>
+            </div>
+          </td>
+          <td style="text-align:right"><span class="row-status"></span></td>
+        </tr>
+      `);
+      $body.append($row);
+    });
+
+    /* Row checkbox — toggle row highlight */
+    $body.on('change', '.row-cb', function () {
+      $(this).closest('tr').toggleClass('row-selected', this.checked);
+      updateSelectionUI();
+    });
+
+    /* Click entire row to toggle (except cb cell) */
+    $body.on('click', 'tr', function (e) {
+      if ($(e.target).closest('.cb-wrap').length) return;
+      const $cb = $(this).find('.row-cb');
+      $cb.prop('checked', !$cb.prop('checked')).trigger('change');
+    });
+
+    updateSelectionUI();
+  }
+
+  /* ── SELECT ALL ──────────────────────────────────────────── */
+  $('#selectAllCb').on('change', function () {
+    const checked = this.checked;
+    $('.row-cb').each(function () {
+      $(this).prop('checked', checked).closest('tr').toggleClass('row-selected', checked);
+    });
+    updateSelectionUI();
+  });
+
+  function updateSelectionUI () {
+    const total    = $('.row-cb').length;
+    const selected = $('.row-cb:checked').length;
+
+    $('#selNum').text(selected);
+    $('#deleteBtn').prop('disabled', selected === 0 || isDeleting);
+
+    /* Sync "select all" state */
+    if (total === 0) {
+      $('#selectAllCb').prop({ checked: false, indeterminate: false });
+    } else if (selected === 0) {
+      $('#selectAllCb').prop({ checked: false, indeterminate: false });
+    } else if (selected === total) {
+      $('#selectAllCb').prop({ checked: true,  indeterminate: false });
+    } else {
+      $('#selectAllCb').prop({ checked: false, indeterminate: true });
+    }
+  }
+
+  /* ── DELETE SELECTED ─────────────────────────────────────── */
+  $('#deleteBtn').on('click', async function () {
+    const vault   = $('#vaultSelect').val();
+    const $checked = $('.row-cb:checked');
+
+    if ($checked.length === 0) return;
+
+    isDeleting = true;
+    $('#deleteBtn').prop('disabled', true);
+    $('#selectAllCb').prop('disabled', true);
+    $('.row-cb').prop('disabled', true);
+    $('#vaultSelect').prop('disabled', true);
+
+    const total    = $checked.length;
+    const $progBox = $('#delete-progress').show();
+    $('#prog-total').text(total);
+
+    let succeeded = 0;
+    let failed    = 0;
+
+    for (let i = 0; i < total; i++) {
+      const $cb  = $checked.eq(i);
+      const $row = $cb.closest('tr');
+      const file = $row.data('file');
+
+      /* Progress */
+      $('#prog-current').text(i + 1);
+      $('#prog-fill').css('width', ((i / total) * 100) + '%');
+
+      /* Visual feedback */
+      $row.find('.row-status').removeClass('success error deleted').addClass('deleting').html(
+        '<span class="spinner" style="width:12px;height:12px;border-width:1.5px"></span> Deleting…'
+      );
+
+      try {
+        await deleteFile(vault, file);
+        $row.find('.row-status').removeClass('deleting').addClass('success').text('Deleted');
+        $row.addClass('row-selected').css('opacity', '0.45');
+        succeeded++;
+      } catch (err) {
+        $row.find('.row-status').removeClass('deleting').addClass('error').text('Failed');
+        failed++;
+      }
+    }
+
+    /* Progress to 100% */
+    $('#prog-fill').css('width', '100%');
+    setTimeout(() => $progBox.hide(), 800);
+
+    /* Summary toast */
+    if (failed === 0) {
+      showToast(`${succeeded} file(s) deleted successfully.`, 'success');
+    } else {
+      showToast(`${succeeded} deleted, ${failed} failed.`, 'warning', 5000);
+    }
+
+    /* Re-enable controls */
+    isDeleting = false;
+    $('#selectAllCb').prop('disabled', false);
+    $('#vaultSelect').prop('disabled', false);
+
+    /* Reload vault after brief delay */
+    setTimeout(() => fetchVault(), 1200);
+  });
+
+  /* ── DELETE API CALL (returns Promise) ───────────────────── */
+  function deleteFile (vault, filename) {
+    return new Promise(function (resolve, reject) {
+      if (USE_DUMMY) {
+        /* Simulate async delete */
+        setTimeout(() => {
+          /* Simulate occasional failure for demo realism — comment out if unwanted */
+          // if (Math.random() < 0.1) return reject(new Error('Simulated error'));
+          resolve('ok');
+        }, 500 + Math.random() * 400);
+        return;
+      }
+
+      $.ajax({
+        url:         API_DELETE,
+        method:      'POST',
+        contentType: 'application/json',
+        data:        JSON.stringify({ vault, filename }),
+        success:     function (res) { resolve(res); },
+        error:       function (xhr) { reject(new Error(xhr.statusText || 'Request failed')); }
+      });
+    });
+  }
+
+  /* ── VAULT CHANGE ────────────────────────────────────────── */
+  $('#vaultSelect').on('change', function () {
+    $('#selectAllCb').prop({ checked: false, indeterminate: false });
+    fetchVault();
+  });
+
+  /* ── INIT ────────────────────────────────────────────────── */
+  fetchVault();
+});
+</script>
+</body>
+</html>
