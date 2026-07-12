@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concept 3 — Flow Board (Light · Cards/Board/List)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f8; --surface:#ffffff; --border:#dde4ee;
+    --ink:#161f2e; --ink-2:#4b5a72; --ink-3:#8593a9;
+    --brand:#0f4dbc; --brand-2:#1668e3;
+    --open:#1668e3; --wip:#0e7490; --pending:#b45309; --closed:#15803d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:"IBM Plex Sans",sans-serif; background:var(--bg); color:var(--ink); min-height:100vh}
+  .mono{font-family:"IBM Plex Mono",monospace}
+
+  /* ── Toolbar ─────────────────────────────── */
+  .toolbar{background:var(--surface); border-bottom:1px solid var(--border); padding:0 28px;
+    display:flex; align-items:center; gap:22px; height:64px; position:sticky; top:0; z-index:5}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:700; font-size:16px; letter-spacing:-.2px}
+  .logo i{width:28px; height:28px; border-radius:7px; font-style:normal; display:grid; place-items:center;
+    background:linear-gradient(135deg,#0f4dbc,#3b82f6); color:#fff; font-size:14px; font-weight:700}
+  .views{display:flex; gap:2px; background:var(--bg); border-radius:8px; padding:3px}
+  .views button{border:none; font:inherit; font-size:13.5px; font-weight:600; padding:7px 16px;
+    border-radius:6px; background:transparent; color:var(--ink-3); cursor:pointer}
+  .views button.on{background:var(--surface); color:var(--brand); box-shadow:0 1px 3px rgba(20,40,80,.12)}
+  .toolbar .meta{margin-left:auto; font-size:13px; color:var(--ink-3)}
+  .toolbar .btn{background:var(--brand-2); color:#fff; border:none; font:inherit; font-size:14px;
+    font-weight:600; padding:9px 18px; border-radius:8px; cursor:pointer}
+
+  /* ── View containers ─────────────────────── */
+  .view{display:none; max-width:1420px; margin:0 auto; padding:28px 28px 52px}
+  #view-board.active{display:grid; grid-template-columns:repeat(3,minmax(340px,1fr)); gap:22px; align-items:start}
+  #view-cards.active{display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px}
+  #view-list.active{display:block}
+
+  /* ── Board lanes ─────────────────────────── */
+  .col{background:#e6ebf4; border-radius:14px; padding:12px}
+  .col-head{display:flex; align-items:center; gap:10px; padding:8px 10px 14px}
+  .col-head::before{content:""; width:11px; height:11px; border-radius:3px; background:var(--cc)}
+  .col-head b{font-size:15px; letter-spacing:.2px}
+  .col-head .sub{font-size:12px; color:var(--ink-3)}
+  .col-head .n{margin-left:auto; font-size:12.5px; font-weight:600; color:var(--ink-2);
+    background:#d7dfec; border-radius:99px; padding:3px 11px}
+  .col-cards{display:flex; flex-direction:column; gap:12px; min-height:60px}
+
+  /* ── Ticket cards (board + cards views) ──── */
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 18px 15px;
+    box-shadow:0 1px 2px rgba(22,38,66,.06); cursor:grab; transition:box-shadow .15s ease, border-color .15s ease}
+  .card:hover{border-color:#b9c8e0; box-shadow:0 6px 16px -6px rgba(22,38,66,.18)}
+  .card.dim{opacity:.82}
+  .c-top{display:flex; align-items:center; gap:9px; margin-bottom:10px}
+  .tno{font-size:13px; font-weight:600; color:var(--brand)}
+  .age{margin-left:auto; font-size:12px; color:var(--ink-3)}
+  .desc{margin:0 0 14px; font-size:15.5px; font-weight:500; line-height:1.5; min-height:2.9em}
+  .c-foot{display:flex; align-items:center; gap:8px}
+  .class{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+    padding:4px 10px; border-radius:6px; background:var(--kb); color:var(--kc)}
+  .k-hw{--kb:#e3edff;--kc:#1345a8}.k-sw{--kb:#e1f3fa;--kc:#0d6480}.k-nw{--kb:#e7e9fd;--kc:#4338ca}
+  .k-ac{--kb:#dff0fb;--kc:#0c4a6e}.k-ot{--kb:#eaeef4;--kc:#526175}
+
+  /* Customer ID → assignee avatar */
+  .flow{margin-left:auto; font-size:12.5px; color:var(--ink-2); display:flex; align-items:center; gap:7px}
+  .flow .arr{color:#a9b8cf}
+  .flow b{font-weight:600}
+  .avatar{width:32px; height:32px; border-radius:50%; display:block; object-fit:cover;
+    border:2px solid #fff; box-shadow:0 0 0 1.5px var(--border)}
+  .avatar-none{width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+    border:1.5px dashed #aebcd1; background:#f3f6fb; color:#9aa9c0; flex:none}
+  .avatar-none svg{width:16px; height:16px}
+  .sm .avatar,.sm .avatar-none{width:26px; height:26px}
+  .sm .avatar-none svg{width:13px; height:13px}
+
+  /* Status pills — one component, five statuses */
+  .pill{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.6px; padding:3px 10px; border-radius:99px; white-space:nowrap}
+  .pill::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor}
+  .pill.open{background:#e3edff; color:#1345a8}
+  .pill.wip{background:#dff4f8; color:#0d6480}
+  .pill.pending{background:#fdf0dd; color:#92510a}
+  .pill.closed{background:#e2f3e8; color:#116a37}
+  .pill.await{background:#fff; border:1px solid #a5d6b7; color:#116a37}
+
+  /* ── List view ───────────────────────────── */
+  .list-table{width:100%; border-collapse:separate; border-spacing:0; background:var(--surface);
+    border:1px solid var(--border); border-radius:12px; overflow:hidden}
+  .list-table th{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.6px;
+    color:var(--ink-3); text-align:left; padding:13px 16px; background:#f7f9fc; border-bottom:1px solid var(--border)}
+  .list-table td{padding:13px 16px; border-bottom:1px solid #edf1f8; font-size:14px; vertical-align:middle}
+  .list-table tr:last-child td{border-bottom:none}
+  .list-table tbody tr:hover{background:#f4f8ff}
+  .list-table .tno{font-size:13px}
+  .list-table .unassigned-label{font-size:12px; color:var(--ink-3); font-style:italic}
+  .table-scroll{overflow-x:auto}
+
+  footer{font-size:12.5px; color:var(--ink-3); text-align:center; padding-bottom:28px}
+  @media (max-width:1020px){#view-board.active{grid-template-columns:1fr}}
+</style>
+
+<div class="toolbar">
+  <div class="logo"><i>◧</i> Meridian ITSM <span style="color:var(--ink-3);font-weight:400">/ Service Desk</span></div>
+  <div class="views" id="view-switch">
+    <button data-view="cards">Cards</button>
+    <button data-view="board" class="on">Board</button>
+    <button data-view="list">List</button>
+  </div>
+  <span class="meta">9 active tickets · refreshed 2 min ago</span>
+  <button class="btn">+ New ticket</button>
+</div>
+
+<main>
+  <div class="view" id="view-cards"></div>
+  <div class="view active" id="view-board"></div>
+  <div class="view" id="view-list"></div>
+</main>
+
+<footer>Concept 3 · “Flow Board” — light theme · functional Cards / Board / List views · dashed circle = unassigned</footer>
+
+<script>
+/* ── Ticket data — in production this comes from your API ── */
+const TICKETS = [
+  {id:"TCK-10482", desc:"Laptop won't power on after Windows 11 update — no charge LED.", cls:"hw", status:"open",    customer:"A7X24K", agent:null,     age:"25m"},
+  {id:"TCK-10477", desc:"VPN drops every 15 minutes on home network.",                    cls:"nw", status:"wip",     customer:"K2R88T", agent:"J3M9Q1", age:"1h"},
+  {id:"TCK-10473", desc:"License request — Acrobat Pro for Finance team (4 seats).",      cls:"sw", status:"pending", customer:"M4D71P", agent:"R8T2L6", age:"2h"},
+  {id:"TCK-10469", desc:"Shared drive access denied for whole team after permissions reset.", cls:"ac", status:"await", customer:"Q9W33Z", agent:"H5N7C2", age:"3h"},
+  {id:"TCK-10465", desc:"3F printer jams on duplex jobs; tray 2 roller suspected.",        cls:"hw", status:"wip",     customer:"B6J54Y", agent:"R8T2L6", age:"4h"},
+  {id:"TCK-10461", desc:"Outlook search returns nothing after mailbox migration.",         cls:"sw", status:"open",    customer:"D8V19E", agent:null,     age:"5h"},
+  {id:"TCK-10458", desc:"New starter onboarding — workstation, accounts, badge.",          cls:"ot", status:"wip",     customer:"F1G62N", agent:null,     age:"6h"},
+  {id:"TCK-10454", desc:"Monitor flickers when docked through USB-C hub.",                 cls:"hw", status:"closed",  customer:"S3H80M", agent:"W6K1D9", age:"8h"},
+  {id:"TCK-10450", desc:"SSO portal lockout — password reset & MFA re-enrolment.",         cls:"ac", status:"closed",  customer:"L5C47R", agent:"W6K1D9", age:"9h"}
+];
+
+/* Sample avatars — in production: src = `https://your-api/avatar/${agentId}.jpg` */
+const AVATARS = {
+  J3M9Q1:`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231668e3'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23ffd9b8'/%3E%3Cpath d='M21 22c0-8 22-8 22 0v-3c0-11-22-11-22 0z' fill='%233a2e2a'/%3E%3Cpath d='M10 64c2-14 12-19 22-19s20 5 22 19z' fill='%23fff'/%3E%3C/svg%3E`,
+  R8T2L6:`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230e7490'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23e8b98c'/%3E%3Cpath d='M20 26c-2-14 26-14 24 0 2-8-2-17-12-17s-14 9-12 17z' fill='%23151210'/%3E%3Cpath d='M10 64c2-14 12-19 22-19s20 5 22 19z' fill='%23fff'/%3E%3C/svg%3E`,
+  H5N7C2:`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%234338ca'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23f2c9a0'/%3E%3Cpath d='M19 30c-3-16 29-16 26 0l2-6c2-12-28-12-30 0z' fill='%236b4a2f'/%3E%3Cpath d='M10 64c2-14 12-19 22-19s20 5 22 19z' fill='%23fff'/%3E%3C/svg%3E`,
+  W6K1D9:`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230369a1'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23d9a06b'/%3E%3Cpath d='M21 24c-1-10 5-14 11-14s12 4 11 14c0-6-4-9-11-9s-11 3-11 9z' fill='%23262019'/%3E%3Cpath d='M10 64c2-14 12-19 22-19s20 5 22 19z' fill='%23fff'/%3E%3C/svg%3E`
+};
+
+const STATUS_LABEL = {open:"Open", wip:"Work In Progress", pending:"Pending", closed:"Closed", await:"Awaiting Closure"};
+const CLS_LABEL    = {hw:"Hardware", sw:"Software", nw:"Network", ac:"Access", ot:"Other"};
+
+const LANES = [
+  {key:"lane-open",   title:"Open",             sub:"new &amp; unactioned",      color:"var(--open)",   statuses:["open"]},
+  {key:"lane-wip",    title:"Work In Progress", sub:"incl. pending customer",    color:"var(--wip)",    statuses:["wip","pending"]},
+  {key:"lane-closed", title:"Closed",           sub:"incl. awaiting closure",    color:"var(--closed)", statuses:["closed","await"]}
+];
+
+function avatarHTML(agent, small){
+  const sz = small ? "sm" : "";
+  if(!agent) return `<span class="avatar-none" title="Unassigned"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.5-6.5 8-6.5s7 2 8 6.5"/></svg></span>`;
+  return `<img class="avatar" alt="Agent ${agent}" title="Agent ${agent}" src="${AVATARS[agent]}">`;
+}
+
+/* One card template for both Cards and Board views.
+   showStatus: 'always' (Cards view) | 'secondary' (Board view: only Pending / Awaiting Closure) */
+function cardHTML(t, showStatus){
+  const secondary = t.status === "pending" || t.status === "await";
+  const pill = (showStatus === "always" || (showStatus === "secondary" && secondary))
+    ? `<span class="pill ${t.status}">${STATUS_LABEL[t.status]}</span>` : "";
+  const dim = t.status === "closed" ? " dim" : "";
+  return `
+  <article class="card${dim}">
+    <div class="c-top"><span class="tno mono">${t.id}</span>${pill}<span class="age">${t.age}</span></div>
+    <p class="desc">${t.desc}</p>
+    <div class="c-foot"><span class="class k-${t.cls}">${CLS_LABEL[t.cls]}</span>
+      <span class="flow"><b class="mono" title="Customer ${t.customer}">${t.customer}</b><span class="arr">→</span>${avatarHTML(t.agent)}</span>
+    </div>
+  </article>`;
+}
+
+function renderCards(){
+  document.getElementById("view-cards").innerHTML =
+    TICKETS.map(t => cardHTML(t, "always")).join("");
+}
+
+function renderBoard(){
+  document.getElementById("view-board").innerHTML = LANES.map(lane => {
+    const items = TICKETS.filter(t => lane.statuses.includes(t.status));
+    return `
+    <section class="col" style="--cc:${lane.color}">
+      <div class="col-head"><b>${lane.title}</b><span class="sub">${lane.sub}</span><span class="n">${items.length}</span></div>
+      <div class="col-cards">${items.map(t => cardHTML(t, "secondary")).join("")}</div>
+    </section>`;
+  }).join("");
+}
+
+function renderList(){
+  const rows = TICKETS.map(t => `
+    <tr${t.status === "closed" ? ' style="opacity:.75"' : ""}>
+      <td class="tno mono">${t.id}</td>
+      <td>${t.desc}</td>
+      <td><span class="class k-${t.cls}">${CLS_LABEL[t.cls]}</span></td>
+      <td><span class="pill ${t.status}">${STATUS_LABEL[t.status]}</span></td>
+      <td class="mono">${t.customer}</td>
+      <td class="sm">${t.agent ? avatarHTML(t.agent, true) : '<span class="unassigned-label">Unassigned</span>'}</td>
+      <td style="color:var(--ink-3)">${t.age}</td>
+    </tr>`).join("");
+  document.getElementById("view-list").innerHTML = `
+    <div class="table-scroll"><table class="list-table">
+      <thead><tr>
+        <th>Ticket</th><th>Description</th><th>Classification</th><th>Status</th>
+        <th>Customer</th><th>Assignee</th><th>Age</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+/* ── View switching ── */
+document.getElementById("view-switch").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-view]");
+  if(!btn) return;
+  document.querySelectorAll("#view-switch button").forEach(b => b.classList.toggle("on", b === btn));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + btn.dataset.view));
+});
+
+renderCards(); renderBoard(); renderList();
+</script>
+</html>
