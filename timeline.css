@@ -1,0 +1,367 @@
+/* timeline.css — Hierarchy Gantt (V1) for timeline.html */
+
+:root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --ring: rgba(11, 11, 11, .10);
+    --bar: #2a78d6;
+    --bar-done: #1c5cab;
+    --idle: #b45309;
+    --today: #0b0b0b;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --page: #0d0d0d;
+        --surface: #1a1a19;
+        --ink: #ffffff;
+        --ink-2: #c3c2b7;
+        --muted: #898781;
+        --grid: #2c2c2a;
+        --baseline: #383835;
+        --ring: rgba(255, 255, 255, .10);
+        --bar: #3987e5;
+        --bar-done: #86b6ef;
+        --idle: #dd9a45;
+        --today: #ffffff;
+    }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    background: var(--page);
+    color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-bottom: 64px;
+}
+.tl-mono { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; }
+
+.tl-wrap { max-width: none; margin: 0; padding: 0 18px; }
+
+/* ---------- header ---------- */
+.tl-header { padding: 30px 0 14px; }
+.tl-eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0 0 8px;
+}
+.tl-title-row { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.tl-header h1 {
+    font-family: "Archivo", system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(24px, 3.4vw, 38px);
+    letter-spacing: -.02em;
+    line-height: 1.05;
+    margin: 0;
+}
+.tl-full-link {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--baseline);
+    padding-bottom: 1px;
+}
+.tl-full-link:hover { color: var(--ink); border-color: var(--ink); }
+
+.tl-keyrow { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding: 14px 0 4px; }
+.tl-key { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.tl-key-solid { width: 20px; height: 12px; border-radius: 4px; background: var(--bar); }
+.tl-key-hollow { width: 20px; height: 8px; border: 1.5px solid var(--baseline); border-radius: 3px; }
+.tl-key-hatch { width: 22px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, transparent 0 3px, var(--baseline) 3px 4.5px); }
+.tl-key-idle { width: 22px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, transparent 0 3px, var(--idle) 3px 4.5px); }
+.tl-key-slack { width: 22px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, transparent 0 3px, var(--idle) 3px 4.5px); opacity: .4; }
+.tl-key-today { width: 2px; height: 15px; background: repeating-linear-gradient(180deg, var(--today) 0 3px, transparent 3px 6px); }
+.tl-key-hint { color: var(--muted); font-style: italic; }
+.tl-toggle-all {
+    margin-left: auto;
+    font: 500 12px "IBM Plex Mono", monospace;
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid var(--baseline);
+    border-radius: 999px;
+    padding: 4px 14px;
+    cursor: pointer;
+}
+.tl-toggle-all:hover { color: var(--ink); border-color: var(--ink); }
+.tl-show-hidden { margin-left: 0; color: var(--bar); border-color: var(--bar); }
+.tl-show-hidden:hover { color: var(--page); background: var(--bar); border-color: var(--bar); }
+
+/* ---------- notice / states ---------- */
+.tl-notice {
+    background: var(--surface);
+    border: 1px solid var(--baseline);
+    border-left: 4px solid var(--bar);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin: 0 0 14px;
+    color: var(--ink-2);
+    font-size: 13.5px;
+}
+.tl-loading { padding: 60px 0; text-align: center; color: var(--muted); }
+.tl-error { padding: 50px 0; text-align: center; color: var(--ink-2); }
+.tl-error button {
+    margin-top: 12px;
+    font: 600 13px "Archivo", sans-serif;
+    color: var(--ink);
+    background: transparent;
+    border: 1.5px solid var(--ink);
+    border-radius: 8px;
+    padding: 7px 22px;
+    cursor: pointer;
+}
+.tl-error button:hover { background: var(--ink); color: var(--page); }
+
+/* ---------- panel & chart ---------- */
+.tl-panel {
+    background: var(--surface);
+    border: 1px solid var(--ring);
+    border-radius: 14px;
+    /* horizontal inset lives on .tl-chart, NOT here: left padding inside the
+       scroll container would offset the sticky name column off the edge */
+    padding: 18px 0 14px;
+    overflow-x: auto;
+    box-shadow: 0 1px 2px rgba(11, 11, 11, .06),
+                0 6px 18px rgba(11, 11, 11, .07),
+                0 16px 40px rgba(11, 11, 11, .06);
+}
+@media (prefers-color-scheme: dark) {
+    .tl-panel {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, .40),
+                    0 8px 24px rgba(0, 0, 0, .45);
+    }
+}
+.tl-chart { position: relative; margin: 0 18px; }
+.tl-loading, .tl-error { margin: 0 18px; }
+
+.tl-grid-layer, .tl-today-layer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+.tl-gline { position: absolute; top: 26px; bottom: 4px; width: 1px; background: var(--grid); }
+.tl-glabel {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.tl-todayline {
+    position: absolute;
+    top: 22px;
+    bottom: 4px;
+    width: 0;
+    border-left: 2px dashed var(--today);
+    opacity: .5;
+}
+.tl-todaytag {
+    position: absolute;
+    top: -2px;
+    transform: translateX(-50%);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--baseline);
+    border-radius: 999px;
+    padding: 1px 8px;
+    z-index: 2;
+}
+
+.tl-rows { position: relative; padding-top: 30px; }
+
+.tl-row { display: flex; align-items: center; height: 30px; border-radius: 6px; }
+.tl-row:hover { background: rgba(128, 128, 128, .07); }
+.tl-row.tl-hidden { display: none; }
+
+.tl-name {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 14px;
+    font-size: 13px;
+    min-width: 0;
+    /* freeze the name column while the panel scrolls horizontally; stretch
+       to the full row height so bars/gridlines can't peek above or below */
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--surface);
+    align-self: stretch;
+}
+/* .tl-name is opaque (it must cover bars scrolling under it), so the row
+   hover tint is re-applied on it as a gradient overlay */
+.tl-row:hover .tl-name {
+    background-image: linear-gradient(rgba(128, 128, 128, .07), rgba(128, 128, 128, .07));
+}
+.tl-name .tl-caret {
+    flex: none;
+    width: 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+.tl-name .tl-nm {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tl-name .tl-nm.tl-parent { color: var(--ink-2); cursor: pointer; }
+/* FONT TWEAK (revertible): delete this block + the tl-top / tl-leafnm
+   classes in timeline.js render() to restore uniform name styling */
+.tl-name .tl-nm.tl-top { font-weight: 600; color: var(--ink); }
+.tl-name .tl-nm.tl-leafnm { font-style: italic; }
+.tl-name .tl-kids {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+}
+/* hide-row eye: appears on row hover, right after the (n) count */
+.tl-name .tl-hide {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    color: var(--muted);
+    cursor: pointer;
+    opacity: 0;
+    padding: 2px;
+    border-radius: 4px;
+}
+.tl-row:hover .tl-hide { opacity: 1; }
+.tl-hide:hover { color: var(--ink); background: var(--ring); }
+.tl-hide:focus-visible { opacity: 1; outline: 2px solid var(--bar); outline-offset: 1px; }
+
+.tl-track { position: relative; flex: 1; height: 100%; margin-right: 118px; }
+
+.tl-bar {
+    position: absolute;
+    top: 50%;
+    height: 14px;
+    transform: translateY(-50%);
+    border-radius: 4px;
+    background: var(--bar);
+    outline: none;
+}
+.tl-bar:focus-visible, .tl-wait:focus-visible, .tl-idle:focus-visible, .tl-slack:focus-visible {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--bar);
+    outline: none;
+}
+.tl-bar .tl-pct {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--bar-done);
+    border-radius: 4px 0 0 4px;
+    max-width: 100%;
+}
+.tl-wait {
+    position: absolute;
+    top: 50%;
+    height: 10px;
+    transform: translateY(-50%);
+    border-radius: 3px;
+    background: repeating-linear-gradient(45deg, transparent 0 3px, var(--baseline) 3px 4.5px);
+}
+.tl-idle {
+    position: absolute;
+    top: 50%;
+    height: 10px;
+    transform: translateY(-50%);
+    border-radius: 3px;
+    background: repeating-linear-gradient(45deg, transparent 0 3px, var(--idle) 3px 4.5px);
+}
+/* fainter idle: task has NO predecessor and simply starts after project
+   day 1 — planned lateness rather than post-unblock idleness */
+.tl-slack {
+    position: absolute;
+    top: 50%;
+    height: 10px;
+    transform: translateY(-50%);
+    border-radius: 3px;
+    background: repeating-linear-gradient(45deg, transparent 0 3px, var(--idle) 3px 4.5px);
+    opacity: .4;
+}
+.tl-rollbar {
+    position: absolute;
+    top: 50%;
+    height: 8px;
+    transform: translateY(-50%);
+    border: 1.5px solid var(--baseline);
+    border-radius: 3px;
+}
+.tl-days {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    white-space: nowrap;
+    padding-left: 8px;
+}
+.tl-nodates {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11.5px;
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* ---------- tooltip ---------- */
+.tl-tip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    max-width: min(560px, 60vw);
+    background: var(--ink);
+    color: var(--page);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .25);
+}
+.tl-tip .t { display: block; font-weight: 600; margin-bottom: 3px; }
+.tl-tip .m { display: block; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; opacity: .85; }
+/* grey variant for the hatched tail bars (waiting / idle) */
+.tl-tip.tl-tip-alt {
+    background: #e7e6e1;
+    color: #1a1a19;
+    border: 1px solid var(--baseline);
+}
+@media (prefers-color-scheme: dark) {
+    .tl-tip.tl-tip-alt {
+        background: #33332f;
+        color: #f0efe9;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .tl-bar, .tl-rollbar { animation: tl-grow .4s ease-out backwards; }
+    @keyframes tl-grow {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+}
+@media (max-width: 640px) {
+    .tl-wrap { padding: 0 12px; }
+}
