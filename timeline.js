@@ -241,15 +241,28 @@ $(document).ready(function () {
         $('#tl-project-name').text(displayName(projectName));
         $('#tl-scope-name').text(scopeName);
 
-        // Time domain from the rows themselves
-        var min = null, max = null;
+        // Time domain from the rows themselves. barMin/barMax track actual
+        // task bars only (no wait tails) — they feed the STARTS/ENDS label.
+        var min = null, max = null, barMin = null, barMax = null;
         rows.forEach(function (r) {
-            if (r.s && (!min || r.s < min)) min = r.s;
-            if (r.e && (!max || r.e > max)) max = r.e;
+            if (r.s && (!barMin || r.s < barMin)) barMin = r.s;
+            if (r.e && (!barMax || r.e > barMax)) barMax = r.e;
             // wait tails can reach back before the first bar in a scoped
             // view — widen the axis so they stay visible
             if (r.wait && r.wait.waiting && (!min || r.wait.waiting.from < min)) min = r.wait.waiting.from;
         });
+        if (barMin && (!min || barMin < min)) min = barMin;
+        max = barMax;
+
+        var $range = $('#tl-daterange');
+        if (barMin && barMax) {
+            $range.html('<span>STARTS : <b>' + fmt(barMin) + '</b></span>' +
+                        '<span>ENDS&nbsp;&nbsp; : <b>' + fmt(barMax) + '</b></span>')
+                  .prop('hidden', false);
+        } else {
+            $range.prop('hidden', true);
+        }
+
         if (!min || !max) {
             $chart.html('<p style="padding:30px 0;color:var(--muted)">No dated tasks to plot.</p>').prop('hidden', false);
             return;
@@ -663,6 +676,7 @@ $(document).ready(function () {
     function showError(msg) {
         $('#tl-error-msg').text(msg);
         $('#tl-error').prop('hidden', false);
+        $('#tl-daterange').prop('hidden', true);
     }
 
     $('#tl-retry').on('click', load);
