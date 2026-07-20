@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .landing {
+            width: 100%;
+            height: 100vh;
+            background: url('wavybackground.jpg') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* ===== Logo + Project Hub Title — top left ===== */
+        .hub-brand {
+            position: absolute;
+            top: 32px;
+            left: 46px;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            animation: titleFade 0.8s ease forwards;
+        }
+
+        .hub-logo {
+            width: 70px;
+            height: auto;
+            margin-bottom: 14px;
+        }
+
+        .hub-title {
+            display: block;
+            text-decoration: none;
+            line-height: 1.05;
+            font-weight: 700;
+            font-size: 128px;
+            letter-spacing: -2.5px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.95) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            user-select: none;
+        }
+
+        @keyframes titleFade {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== Puzzle cards =====
+           Four jigsaw pieces in a 2x2. Tabs pass clockwise around the
+           center: Design > Update > Timeline > View > Design, so every
+           piece has exactly one knob (male) and one notch (female).
+           Piece outlines are single SVG paths generated at load. */
+        .puzzle {
+            display: grid;
+            grid-template-columns: repeat(2, 340px);
+            grid-template-rows: repeat(2, 300px);
+            gap: 8px;
+        }
+
+        .piece {
+            position: relative;
+            display: block;
+            width: 340px;
+            height: 300px;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+            opacity: 0;
+            transform: translate(var(--dx), var(--dy));
+            animation: pieceSnap 0.7s cubic-bezier(0.22,1,0.36,1) forwards;
+        }
+
+        /* each piece slides in from its own corner, like assembling */
+        .piece[data-pos="tl"] { --dx: -46px; --dy: -46px; animation-delay: 0.25s; }
+        .piece[data-pos="tr"] { --dx:  46px; --dy: -46px; animation-delay: 0.40s; }
+        .piece[data-pos="bl"] { --dx: -46px; --dy:  46px; animation-delay: 0.55s; }
+        .piece[data-pos="br"] { --dx:  46px; --dy:  46px; animation-delay: 0.70s; }
+
+        @keyframes pieceSnap {
+            to { opacity: 1; transform: translate(0, 0); }
+        }
+
+        /* once the snap-in ends the animation is dropped (see script) so
+           its fill-mode stops pinning transform and hover can lift */
+        .piece.settled {
+            animation: none;
+            opacity: 1;
+            transform: none;
+        }
+
+        .piece.settled:hover, .piece.settled:focus-visible {
+            transform: translateY(-6px);
+        }
+
+        .piece svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: visible;   /* knobs protrude past the box */
+            filter: drop-shadow(0 4px 16px rgba(0,0,0,0.30));
+            transition: filter 0.3s ease;
+        }
+
+        .piece path {
+            fill: url(#pieceGrad);
+            stroke: rgba(255,255,255,0.55);
+            stroke-width: 1;
+            transition: stroke 0.3s ease, stroke-width 0.3s ease;
+        }
+
+        .piece:hover, .piece:focus-visible {
+            transform: translateY(-6px);
+            z-index: 3;
+        }
+
+        .piece:hover svg, .piece:focus-visible svg {
+            filter: drop-shadow(0 16px 40px rgba(0,0,0,0.5));
+        }
+
+        .piece:hover path, .piece:focus-visible path {
+            stroke: var(--ac);
+            stroke-width: 2;
+        }
+
+        .piece-body {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            padding: 28px 48px 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .piece-top {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 18px;
+        }
+
+        /* icon sits left when a knob/notch occupies the card's right lane */
+        .piece-top-left { justify-content: flex-start; }
+
+        .card-icon {
+            width: 84px;
+            height: 84px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+        }
+
+        .card-icon-tasks {
+            background: #eef3fb;
+            color: #2a5db0;
+        }
+
+        .card-icon-grid {
+            background: #edf7f0;
+            color: #2e7d3e;
+        }
+
+        .card-icon-changes {
+            background: #fff3e0;
+            color: #e67c00;
+        }
+
+        .card-icon-kanban {
+            background: #ede7f6;
+            color: #5C6BC0;
+        }
+
+        .card-icon-timeline {
+            background: #e0f4f5;
+            color: #00838f;
+        }
+
+        .card-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+            letter-spacing: -0.3px;
+        }
+
+        .card-desc {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #666;
+            font-weight: 300;
+        }
+
+        @media (max-width: 860px) {
+            .puzzle { transform: scale(0.72); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .piece, .hub-brand, .corner-card { animation: none; opacity: 1; transform: none; }
+        }
+
+        /* ===== Bottom-right compact card ===== */
+        .corner-card {
+            position: absolute;
+            bottom: 28px;
+            right: 32px;
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(213,215,220,0.88) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 14px;
+            padding: 18px 22px 20px;
+            width: 230px;
+            box-shadow:
+                0 4px 24px rgba(0,0,0,0.25),
+                0 1px 3px rgba(0,0,0,0.12);
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s ease;
+            cursor: pointer;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(14px);
+            animation: cornerReveal 0.5s cubic-bezier(0.22,1,0.36,1) 0.7s forwards;
+        }
+
+        .corner-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2.5px;
+            background: linear-gradient(90deg, transparent, rgba(230,124,0,0.5), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .corner-card:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 12px 36px rgba(0,0,0,0.35),
+                0 2px 8px rgba(0,0,0,0.18);
+        }
+
+        .corner-card:hover::after {
+            opacity: 1;
+        }
+
+        .corner-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .corner-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #fff3e0;
+            color: #e67c00;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .corner-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+            letter-spacing: -0.2px;
+            line-height: 1.2;
+        }
+
+        .corner-card-desc {
+            font-size: 12px;
+            line-height: 1.55;
+            color: #777;
+            font-weight: 300;
+        }
+
+        .corner-card-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-top: 10px;
+            opacity: 0;
+            transform: translateX(-4px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .corner-card:hover .corner-card-arrow {
+            opacity: 0.7;
+            transform: translateX(0);
+        }
+
+        .corner-card-arrow i {
+            font-size: 13px;
+            color: #999;
+        }
+
+        @keyframes cornerReveal {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing">
+        <!-- Logo + Project Hub Title -->
+        <div class="hub-brand">
+            <img src="logo.png" alt="Logo" class="hub-logo" onerror="this.style.display='none'">
+            <a href="index.html" class="hub-title">Project<br>Hub</a>
+        </div>
+
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+            <defs>
+                <linearGradient id="pieceGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#ffffff"/>
+                    <stop offset="1" stop-color="#d5d7dc"/>
+                </linearGradient>
+            </defs>
+        </svg>
+
+        <div class="puzzle">
+            <a href="design.html" class="piece" target="_blank" data-pos="tl"
+               data-top="flat" data-right="tab" data-right-at="70" data-bottom="blank" data-left="flat" style="--ac:#2a5db0">
+                <svg viewBox="0 0 340 300" aria-hidden="true"><path d=""/></svg>
+                <div class="piece-body">
+                    <div class="piece-top piece-top-left">
+                        <div class="card-icon card-icon-tasks">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                    </div>
+                    <div class="card-title">Design</div>
+                    <div class="card-desc">Design your task structure with assignees, due dates, and subtask hierarchies.</div>
+                </div>
+            </a>
+
+            <a href="update.html" class="piece" target="_blank" data-pos="tr"
+               data-top="flat" data-right="flat" data-bottom="tab" data-bottom-at="250" data-left="blank" data-left-at="70" style="--ac:#5C6BC0">
+                <svg viewBox="0 0 340 300" aria-hidden="true"><path d=""/></svg>
+                <div class="piece-body">
+                    <div class="piece-top">
+                        <div class="card-icon card-icon-kanban">
+                            <i class="fa-solid fa-arrows-up-down-left-right"></i>
+                        </div>
+                    </div>
+                    <div class="card-title">Update</div>
+                    <div class="card-desc">Drag and drop tasks on your Kanban board to track progress and stay synchronized.</div>
+                </div>
+            </a>
+
+            <a href="view.html" class="piece" target="_blank" data-pos="bl"
+               data-top="tab" data-right="blank" data-bottom="flat" data-left="flat" style="--ac:#2e7d3e">
+                <svg viewBox="0 0 340 300" aria-hidden="true"><path d=""/></svg>
+                <div class="piece-body">
+                    <div class="piece-top">
+                        <div class="card-icon card-icon-grid">
+                            <i class="fa-solid fa-table"></i>
+                        </div>
+                    </div>
+                    <div class="card-title">View</div>
+                    <div class="card-desc">View all team tasks in a powerful spreadsheet-style layout with full visibility.</div>
+                </div>
+            </a>
+
+            <a href="timeline.html" class="piece" target="_blank" data-pos="br"
+               data-top="blank" data-top-at="250" data-right="flat" data-bottom="flat" data-left="tab" style="--ac:#00838f">
+                <svg viewBox="0 0 340 300" aria-hidden="true"><path d=""/></svg>
+                <div class="piece-body">
+                    <div class="piece-top piece-top-left">
+                        <div class="card-icon card-icon-timeline">
+                            <i class="fa-solid fa-chart-gantt"></i>
+                        </div>
+                    </div>
+                    <div class="card-title">Timeline</div>
+                    <div class="card-desc">See your subtasks laid out on a Gantt chart to track schedules and deadlines at a glance.</div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Bottom-right compact card -->
+        <a href="changerequests.html" class="corner-card">
+            <div class="corner-card-header">
+                <div class="corner-card-icon">
+                    <i class="fa fa-comment-dots"></i>
+                </div>
+                <div class="corner-card-title">Change Requests</div>
+            </div>
+            <div class="corner-card-desc">Submit and view your suggestions, bugs found and comments for the developer to review.</div>
+            <div class="corner-card-arrow">
+                <i class="fa fa-arrow-right"></i>
+            </div>
+        </a>
+    </div>
+
+    <script>
+    // Build each jigsaw outline as one SVG path. Knob/notch = a single
+    // major-arc (radius KR, neck 2*KW) at a fixed point on the shared
+    // edge, so opposite pieces always line up: tabs sit at x=120 on
+    // horizontal seams and y=210 on vertical seams in every piece.
+    (function () {
+        var W = 340, H = 300, CR = 16, KW = 16, KR = 26, FX = 120, FY = 210;
+        // Tabs get their neck extended across the grid gap (8px, +1.5 so
+        // antialiasing can't leave a dark hairline) so the knob circle sits
+        // exactly on the neighbor's notch circle: a press-fit, while the
+        // straight runs of the seam keep their visible separation.
+        var EXT = 9.5;
+        function knob(p1, p2, bx, by, ext) {
+            var tx = p2[0] - p1[0], ty = p2[1] - p1[1];
+            var sweep = (tx * by - ty * bx) < 0 ? 1 : 0;
+            var q1 = [p1[0] + bx * ext, p1[1] + by * ext];
+            var q2 = [p2[0] + bx * ext, p2[1] + by * ext];
+            return 'L' + p1[0] + ' ' + p1[1] +
+                   (ext ? 'L' + q1[0] + ' ' + q1[1] : '') +
+                   'A' + KR + ' ' + KR + ' 0 1 ' + sweep + ' ' + q2[0] + ' ' + q2[1] +
+                   (ext ? 'L' + p2[0] + ' ' + p2[1] : '');
+        }
+        function edgeKnob(kind, p1, p2, bx, by) {
+            var tab = kind === 'tab';
+            return knob(p1, p2, tab ? bx : -bx, tab ? by : -by, tab ? EXT : 0);
+        }
+        document.querySelectorAll('.piece').forEach(function (a) {
+            var e = a.dataset;
+            // knob/notch center per edge; data-*-at overrides the default,
+            // and mating edges of neighboring pieces must use the same value
+            var tx0 = +(e.topAt || FX), bx0 = +(e.bottomAt || FX);
+            var ly0 = +(e.leftAt || FY), ry0 = +(e.rightAt || FY);
+            var d = 'M' + CR + ' 0';
+            if (e.top !== 'flat') d += edgeKnob(e.top, [tx0 - KW, 0], [tx0 + KW, 0], 0, -1);
+            d += 'L' + (W - CR) + ' 0A' + CR + ' ' + CR + ' 0 0 1 ' + W + ' ' + CR;
+            if (e.right !== 'flat') d += edgeKnob(e.right, [W, ry0 - KW], [W, ry0 + KW], 1, 0);
+            d += 'L' + W + ' ' + (H - CR) + 'A' + CR + ' ' + CR + ' 0 0 1 ' + (W - CR) + ' ' + H;
+            if (e.bottom !== 'flat') d += edgeKnob(e.bottom, [bx0 + KW, H], [bx0 - KW, H], 0, 1);
+            d += 'L' + CR + ' ' + H + 'A' + CR + ' ' + CR + ' 0 0 1 0 ' + (H - CR);
+            if (e.left !== 'flat') d += edgeKnob(e.left, [0, ly0 + KW], [0, ly0 - KW], -1, 0);
+            d += 'L0 ' + CR + 'A' + CR + ' ' + CR + ' 0 0 1 ' + CR + ' 0Z';
+            a.querySelector('path').setAttribute('d', d);
+            a.addEventListener('animationend', function () { a.classList.add('settled'); });
+        });
+    })();
+    </script>
+</body>
+</html>
