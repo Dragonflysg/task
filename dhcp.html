@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DHCP Table - Debug</title>
+
+<!-- Bootstrap 4 grid: needed because the DataTables "dom" option below uses row/col-sm-* -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/colreorder/1.7.0/css/colReorder.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+  /* plain css only - troubleshooting build, not a final product */
+  body { padding: 20px; font-family: Arial, Helvetica, sans-serif; font-size: 13px; }
+  table.dataTable td, table.dataTable th { border: 1px solid #ccc; padding: 4px 8px; }
+  .fontnum { font-family: Consolas, "Courier New", monospace; }
+  .dnleft { text-align: left; }
+  .dncenter { text-align: center; }
+  .indigo-text { color: #3f51b5; }
+  .categ-muted { color: #888; }
+  .hideme { display: none; }            /* columns 5 and 6 carry sort values only */
+  /* table.dataTable needed to outrank bootstrap's .table td{vertical-align:top} */
+  table.dataTable td.merge-head { vertical-align: middle; background: #f5f5f5; }
+  #status { margin-top: 12px; color: #444; }
+</style>
+</head>
+<body>
+
+<h3>DHCP scope table</h3>
+
+<div id="giffeed">loading...</div>
+<div class="gif_hist">hist spinner</div>
+
+<table id="TB" class="table table-sm table-bordered" style="width:100%">
+  <thead>
+    <tr>
+      <th>Scope ID</th>
+      <th>IP Range (orig)</th>
+      <th>DHCP Name</th>
+      <th>IP Range</th>
+      <th>Category</th>
+      <th>Scope ID (sort)</th>
+      <th>Order Start</th>
+    </tr>
+  </thead>
+</table>
+
+<div id="status"></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/colreorder/1.7.0/js/dataTables.colReorder.min.js"></script>
+
+<script>
+// ---------------------------------------------------------------------------
+// svc feeds, loaded from dhcp.json. Stands in for whatever populates svc
+// on the real page. Needs to be served over http:// - a file:// page cannot
+// fetch a sibling file (CORS).
+// ---------------------------------------------------------------------------
+var svc = {};
+
+// Columns to collapse, left to right. 0 = Scope ID, 1 = IP Range (orig).
+// Declared up here on purpose: drawCallback fires DURING DataTable init, so a
+// "var" sitting below the init would still be undefined on the first draw.
+var MERGE_COLUMNS = [0, 1];
+
+// Stub for the export dialog the Export button calls.
+function showCsoExportDialog() {
+    console.log('showCsoExportDialog() called');
+    $('#status').text('showCsoExportDialog() called - stub');
+}
+
+$.getJSON('dhcp.json')
+    .fail(function (jqxhr, textStatus, error) {
+        $('#giffeed').hide();
+        $('#status').text('Could not load dhcp.json: ' + textStatus + ' ' + error);
+        console.error('dhcp.json load failed', textStatus, error);
+    })
+    .done(function (rows) {
+        svc.csofeed = rows;
+        // Collapsed view: everything except the individual device rows.
+        svc.dhcp_record_only = rows.filter(function (r) { return r.categ !== 'device'; });
+        console.log('dhcp.json loaded:', rows.length, 'rows;',
+                    svc.dhcp_record_only.length, 'in dhcp_record_only');
+        buildTable();
+    });
+
+// ---------------------------------------------------------------------------
+// tbsow.js snippet, unchanged. Wrapped in a Promise so drawCallback's
+// resolve(true) has something to call, as it does on the real page.
+// ---------------------------------------------------------------------------
+function buildTable() {
+new Promise(function (resolve, reject) {
+
+$('#TB').DataTable({
+    "dom": "<'row'<'col-sm-4'l><'col-sm-4 dncenter'B><'col-sm-4'f>>R" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+    "destroy": true,
+    "paging": true,
+    "bLengthChange": true,
+    "bInfo": true,
+    "ordering": true,
+    "searching": true,
+    "iDisplayLength": 20,
+    "aLengthMenu": [[5, 10, 12, 15, 20, 25, 30, -1], [5, 10, 12, 15, 20, 25, 30, "All"]],
+    "language": {
+        "emptyTable": "No data available",
+        "info": "Showing _START_ to _END_ of _TOTAL_ entries",
+        "infoEmpty": "Showing 0 to 0 of 0 entries ",
+        "lengthMenu": "_MENU_",
+    },
+    "bAutoWidth": false,
+    "initComplete": function (settings, json) {
+        $('#giffeed').hide();
+    },
+    buttons: [
+        {
+            className: 'btnExport',
+            text: '<i class="fa fa-file-excel" aria-hidden="true"></i><span> Export </span>',
+            action: function (e, dt, node, config) {
+                showCsoExportDialog();
+            }
+        },
+        {
+            className: 'btnShowDevices',
+            text: '<i class="fa fa-desktop" aria-hidden="true"></i><span> Expand Columns </span>',
+            action: function (e, dt, node, config) {
+                var showing = dt.column(4).visible();
+                if (showing) {
+                    dt.column(1).visible(false);
+                    dt.column(4).visible(false);
+                    dt.clear().rows.add(svc.dhcp_record_only).draw();
+                    this.text('<i class="fa fa-desktop" aria-hidden="true"></i><span> Expand Columns </span>');
+                } else {
+                    dt.column(1).visible(true);
+                    dt.column(4).visible(true);
+                    dt.clear().rows.add(svc.csofeed).draw();
+                    this.text('<i class="fa fa-desktop" aria-hidden="true"></i><span> Collapse Columns </span>');
+                }
+            }
+        }
+    ],
+    "data": svc.dhcp_record_only,
+    "columnDefs": [
+        { "targets": [0, 3], "orderData": [6] },
+        { "searchable": false, "targets": [0, 5] },
+    ],
+    "drawCallback": function (settings) {
+        $('.gif_hist').hide();
+
+        mergeGroupedCells(this.api());
+        resolve(true);
+    },
+    "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+
+    },
+    "order": [[6, 'asc']],
+    "columns": [
+        { "data": "scopeid", "sClass": "fontnum dnleft indigo-text" },
+        { "data": "iprangeorig", "sClass": "fontnum categ-muted dnleft", "visible": false },
+        { "data": "dhcpname", "sClass": "fontnum rcount dnleft" },
+        { "data": "iprange", "sClass": "fontnum dnleft" },
+        { "data": "categ", "sClass": "fontnum dnleft categ-muted", "visible": false },
+        { "data": "scopeid", "sClass": "fontnum hideme" },
+        { "data": "orderstart", "sClass": "fontnum hideme" }
+    ]
+});
+
+
+// Merges runs of adjacent cells that share a value into one rowspan cell, for
+// each column in MERGE_COLUMNS. Only rows on the CURRENT PAGE are considered,
+// and drawCallback fires on every redraw, so the grouping is rebuilt from
+// scratch after paging, sorting, searching or a page-length change.
+function mergeGroupedCells(api) {
+    var $table = $(api.table().node());
+
+    // Undo the previous pass first. DataTables reuses the same <td> nodes from
+    // one draw to the next, so whatever was collapsed last time is still
+    // collapsed now - without this, page 2 would inherit page 1's spans.
+    $table.find('td.merge-hidden').removeClass('merge-hidden').css('display', '');
+    $table.find('td.merge-head').removeClass('merge-head').removeAttr('rowspan');
+
+    if (!api.rows({ page: 'current' }).count()) { return; }
+
+    // Snapshot values and cell nodes up front, before the DOM is touched.
+    var cols = MERGE_COLUMNS.map(function (idx) {
+        return {
+            visible: api.column(idx).visible(),
+            values:  api.column(idx, { page: 'current' }).data().toArray(),
+            nodes:   api.column(idx, { page: 'current' }).nodes().toArray()
+        };
+    });
+
+    cols.forEach(function (col, depth) {
+        if (!col.visible) { return; }   // hidden column renders no cells
+        var key = null, $head = null, span = 0;
+
+        col.values.forEach(function (value, i) {
+            // A run also has to break wherever a column to the LEFT breaks,
+            // otherwise a repeated value could span two different Scope IDs.
+            var composite = cols.slice(0, depth + 1).map(function (c) {
+                return c.values[i];
+            }).join('\u0000');
+
+            if (composite === key) {
+                span++;
+                $head.attr('rowspan', span);
+                // hidden rather than removed: DataTables still owns this node
+                $(col.nodes[i]).addClass('merge-hidden').css('display', 'none');
+            } else {
+                key  = composite;
+                span = 1;
+                $head = $(col.nodes[i]).addClass('merge-head');
+            }
+        });
+    });
+}
+
+});
+}
+</script>
+</body>
+</html>
