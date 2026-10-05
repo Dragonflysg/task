@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Server Console</title>
+  <link rel="stylesheet" href="/static/vendor/xterm.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/vendor/xterm.js"></script>
+  <script defer src="/static/vendor/addon-fit.js"></script>
+  <script defer src="/static/terminal.js"></script>
+</head>
+<body class="terminal-page">
+  <header class="terminal-header">
+    <div class="terminal-title">
+      <div class="eyebrow">SERVER CONSOLE</div>
+      <h1>Windows terminal</h1>
+    </div>
+    <span id="status" role="status">Connecting…</span>
+    <div class="terminal-actions">
+      <button id="reconnect" class="secondary" disabled>New terminal</button>
+      <button data-command="pm2 ls" class="secondary">Insert PM2 status</button>
+      <button data-command="pm2 logs --lines 100" class="secondary">Insert PM2 logs</button>
+      <button id="interrupt" class="secondary">Ctrl+C</button>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ session.csrf }}">
+        <button class="secondary">Sign out</button>
+      </form>
+    </div>
+  </header>
+  <main class="workspace">
+    <div id="terminal" aria-label="Windows console"></div>
+  </main>
+</body>
+</html>
